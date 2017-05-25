@@ -30,7 +30,6 @@ def examine_directory(dirname, tree_name):
     '''
     returnlist = []
     for root, dirs, files in os.walk(dirname):
-        print root
         root_files = os.path.join(root, "*.root")
         files = count_files(root_files)
         evs = 0
