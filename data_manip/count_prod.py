@@ -3,6 +3,7 @@
 import glob
 import ROOT
 import os
+import json
 
 def count_files(filestr):
     '''Count the files matching the string given (wildcards included)
@@ -64,7 +65,11 @@ def examine_path(path, tree):
     else:
         return examine_files(path, tree)
     
-
+def dump_to_json(jsfile, result):
+    ''' You guessed it
+    '''
+    with open(jsfile, "w") as f:
+        f.write(json.dumps(dict( (x, (y , z)) for (x, y, z) in result )))
 
 if __name__ == "__main__":
     import argparse
@@ -72,5 +77,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("path", type = str)
     parser.add_argument("-tree", type = str, default = "output")
+    parser.add_argument("-to_json", type = str, dest = "jsfile", default = None)
     args = parser.parse_args()
-    print format_result(examine_path(args.path, args.tree))
+    result = examine_path(args.path, args.tree)
+    if args.jsfile is not None:
+        dump_to_json(args.jsfile, result)
+
+    print format_result(result)
