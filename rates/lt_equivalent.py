@@ -48,6 +48,3 @@ if __name__ == "__main__":
             f.write(json.dumps(sorted(ltes.items(), key = lambda x : x[1], reverse = True), indent=4, separators=(',', ': ')))
 
     print ltes
-    
-
- 
