@@ -45,6 +45,7 @@ def examine_files(path, tree):
     :param str tree: key of the tree in ROOT directory
     :returns list( ("name", int , int) ): dirname, nfiles, nevents
     '''
+    print "Counting", path, "..."
     return [(os.path.basename(path), count_files(path), count_events(path, tree))]
 
 def format_result(result):
@@ -78,6 +79,7 @@ if __name__ == "__main__":
     parser.add_argument("path", type = str)
     parser.add_argument("-tree", type = str, default = "output")
     parser.add_argument("-to_json", type = str, dest = "jsfile", default = None)
+    parser.add_argument("-to_json", type = str, dest = "jsfile", default = None) 
     args = parser.parse_args()
     result = examine_path(args.path, args.tree)
     if args.jsfile is not None:

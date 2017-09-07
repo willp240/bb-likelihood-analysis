@@ -34,9 +34,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("counts_file")
-    parser.add_argument("mc_map_file")
     parser.add_argument("rates_file")
-    parser.add_argument("ngen_override_file")
     parser.add_argument("-to_json", type=str, default=None, dest = "jsfile")
 
     args = parser.parse_args()
