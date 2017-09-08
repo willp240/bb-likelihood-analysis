@@ -15,16 +15,19 @@ CutConfigLoader::LoadOne(const std::string& name_) const{
   ConfigLoader::Open(fPath);
 
   double value;
+  double value2;
   std::string type;
   std::string obs;
 
-  ConfigLoader::Load(name_, "value", value);
+  ConfigLoader::Load(name_, "value", value);  
+  ConfigLoader::Load(name_, "value2", value2);
   ConfigLoader::Load(name_, "type", type);
   ConfigLoader::Load(name_, "obs", obs);
 
   CutConfig retVal;
   retVal.SetName(name_);
   retVal.SetValue(value);
+  retVal.SetValue2(value2);
   retVal.SetType(type);
   retVal.SetObs(obs);
   return retVal;
