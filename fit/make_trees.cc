@@ -66,7 +66,7 @@ MakeDataSet(const std::vector<std::string>& filenames_,
       if(!(i % tenPercent)){
 	std::cout << i << " / " << c.GetEntries() << "\t ( " << 10 * i/tenPercent << " %)" << std::endl;
       }
-      c.GetEntry();
+      c.GetEntry(i);
       reff = Reff(x, y, z);
       
       outp.cd();
