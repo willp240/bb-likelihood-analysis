@@ -4,6 +4,7 @@
 #include <DistFiller.h>
 #include <DataSet.h>
 
+
 namespace bbfit{
 
 AxisCollection
@@ -19,11 +20,9 @@ DistBuilder::BuildAxes(const DistConfig& config_){
   std::string branchName;
 
   // save this last one for later
-  std::vector<std::string> branchNames;
   for(int i = 0; i < config_.GetAxisCount(); i++){
     config_.GetAxis(i, name, branchName, texName, nBins, min, max);
     axes.AddAxis(BinAxis(name, min, max, nBins, texName));
-    branchNames.push_back(branchName);
   }
   
   return axes;
