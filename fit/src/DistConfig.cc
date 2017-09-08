@@ -1,16 +1,18 @@
 #include <DistConfig.hh>
 #include <Exceptions.h>
 
+
 namespace bbfit{
 int
 DistConfig::GetAxisCount() const{
-  return fAxisCount;
+  return fAxisNames.size();
 }
 
 void
-DistConfig::GetAxis(int index_, std::string& name_, std::string& branchName_, 
-		   std::string& texName_, 
-		   int binCount_, double min_, double max_) const{
+DistConfig::GetAxis(int index_, std::string& name_, 
+		    std::string& branchName_, 
+		    std::string& texName_, 
+		    int& binCount_, double& min_, double& max_) const{
   try{
     name_ = fAxisNames.at(index_);
     branchName_ = fBranchNames.at(index_);
@@ -42,7 +44,7 @@ DistConfig::GetPDFDir() const{
 }
 
 void
-DistConfig::GetPDFDir(const std::string& s_){
+DistConfig::SetPDFDir(const std::string& s_){
   fPDFDir = s_;
 }
 

@@ -22,7 +22,7 @@ DistConfigLoader::Load() const{
   ConfigLoader::Load("summary", "build_order", order);
 
   std::string pdfDir;
-  ConfigLoader::Load("sumamry", "pdf_dir", pdfDir);
+  ConfigLoader::Load("summary", "pdf_dir", pdfDir);
 
   DistConfig retVal;
 
@@ -36,7 +36,7 @@ DistConfigLoader::Load() const{
     if(std::find(toLoad.begin(), toLoad.end(), order.at(i)) == toLoad.end())
       throw NotFoundError(Formatter() << "DistConfigLoader:: " << order.at(i)
 			  << " is in the build order but has no section!");
-
+    
     name = order.at(i);
     ConfigLoader::Load(name, "min", min);
     ConfigLoader::Load(name, "max", max);
@@ -44,9 +44,10 @@ DistConfigLoader::Load() const{
     ConfigLoader::Load(name, "branch_name", branchName);
     ConfigLoader::Load(name, "tex_name", texName);
 
+    
     retVal.AddAxis(name, branchName, texName, binCount, min, max);
   }
-
+  retVal.SetPDFDir(pdfDir);
   return retVal;
 }
 
