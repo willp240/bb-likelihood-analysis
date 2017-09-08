@@ -18,12 +18,12 @@
 #include <CutFactory.hh>
 #include <CutLog.h>
 #include <HistTools.h>
-
+#include <iostream>
 using namespace bbfit;
 
 int main(int argc, char *argv[]){
   if (argc != 4){
-    std::cout << "Usage: make_trees <event_config_file> <pdf_config_file> <cut_config_file>" << std::endl;
+    std::cout << "\nUsage: make_trees <event_config_file> <pdf_config_file> <cut_config_file>" << std::endl;
     return 1;
   }
     
@@ -32,8 +32,11 @@ int main(int argc, char *argv[]){
   std::string cutConfigFile(argv[3]);
 
 
-  std::cout << "Reading from config files "  
-	    << evConfigFile << ", "  << pdfConfigFile << std::endl;
+  std::cout << "\nReading from config files: "   << std::endl
+	    << "\t" << evConfigFile << ",\n "  
+	    << "\t" << pdfConfigFile << ",\n"
+	    << "\t" << cutConfigFile
+	    << std::endl;
 
     
   // load up the pdf configuration data too
@@ -47,13 +50,16 @@ int main(int argc, char *argv[]){
     mkdir(pdfDir.c_str(), 0700);
   }
 
+  std::cout << "\nSaving pdfs/cut logs to " << pdfDir << std::endl;
+
   // and another one for the projections - there will be loads
   std::string projDir = pdfDir + "/projections";
   st = {0};
   if (stat(projDir.c_str(), &st) == -1) {
     mkdir(projDir.c_str(), 0700);
   }
-
+  
+  std::cout << "\nSaving projections logs to " << projDir << std::endl;
 
   // load up all the event types we want pdfs for
   typedef std::map<std::string, EventConfig> EvMap;
@@ -73,7 +79,7 @@ int main(int argc, char *argv[]){
     std::string type = it->second.GetType();
     std::string obs = it->second.GetObs();
     double val = it->second.GetValue();
-    double val2 = it->second.GetValue();
+    double val2 = it->second.GetValue2();
     Cut *cut = CutFactory::New(name, type, obs, val, val2);
     cutCol.AddCut(*cut);
     delete cut; // cut col takes its own copy
@@ -81,6 +87,8 @@ int main(int argc, char *argv[]){
  
   // now make and fill the pdfs
   for(EvMap::iterator it = toGet.begin(); it != toGet.end(); ++it){    
+    std::cout << "Building distribution for " << it->first << std::endl;
+    
     // monitor the effect of the cuts
     CutLog log(cutCol.GetCutNames());
 
@@ -94,15 +102,17 @@ int main(int argc, char *argv[]){
     delete dataSet;
 
     // normalise
-    dist.Normalise();
+    if(dist.Integral())
+      dist.Normalise();
 
     // save a copy of the cut log
-    log.SaveAs(it->first, pdfDir + it->first + ".txt");
+    log.SaveAs(it->first, pdfDir + "/" + it->first + ".txt");
+
 
     // save as hdf5 obj and root 
     // 1D, just save them
     if(dist.GetNDims() == 1)
-      DistTools::ToTH1D(dist).SaveAs((pdfDir + it->first + ".root").c_str());
+      DistTools::ToTH1D(dist).SaveAs((pdfDir + "/" + it->first + ".root").c_str());
 
     // HigherD save the projections
     else{
@@ -113,13 +123,13 @@ int main(int argc, char *argv[]){
 	const BinnedED& proj = projs.at(i);
 
 	if(projs.at(i).GetNDims() == 1)
-	  DistTools::ToTH1D(proj).SaveAs((projDir + proj.GetName() + ".root").c_str());
+	  DistTools::ToTH1D(proj).SaveAs((projDir + "/" + proj.GetName() + ".root").c_str());
 	else
-	  DistTools::ToTH2D(proj).SaveAs((projDir + proj.GetName() + ".root").c_str());
+	  DistTools::ToTH2D(proj).SaveAs((projDir + "/" + proj.GetName() + ".root").c_str());
       }
     }
 
-    IO::SaveHistogram(dist.GetHistogram(), pdfDir + it->first + ".h5");
+    IO::SaveHistogram(dist.GetHistogram(), pdfDir + "/" + it->first + ".h5");
   }
 
   return 0;
