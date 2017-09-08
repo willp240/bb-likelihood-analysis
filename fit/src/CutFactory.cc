@@ -25,7 +25,7 @@ CutFactory::New(const std::string& name_,
     else
       sidedness = "upper";
 
-    cut = new LineCut(name_, obs_, value, "lower");
+    cut = new LineCut(name_, obs_, value, sidedness);
   }
   else{
     throw ValueError("Unknown cut type: " + type_);
