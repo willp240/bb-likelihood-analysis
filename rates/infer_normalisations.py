@@ -72,8 +72,11 @@ def find_dir(top_dir, mac_name):
     for x in os.listdir(top_dir):
         x = os.path.join(top_dir, x)
         base_name = os.path.splitext(os.path.basename(mac_name))[0]
-        if os.path.isdir(x) and base_name.lower() in glob(os.path.join(x, "*.root"))[0].lower():
-            return x
+        try:
+            if os.path.isdir(x) and base_name.lower() in glob(os.path.join(x, "*.root"))[0].lower():
+                return x
+        except IndexError as e:
+            print "Warning: no ROOT files in {0}".format(x)
 
 def map_macros_to_dirs(top_dir, mac_names):
     ''' Find the mc subdirectory that corresponds to a set of macros
@@ -107,7 +110,7 @@ if __name__ == "__main__":
         file_count_mapping[k] = count_inside(v)
         
 
-    print "Assuming a simulation time of {0} ..\n\n".format(args.run_duration)
+    print "Assuming a simulation time of {0}yr ..\n\n".format(args.run_duration)
     row_format ="{0:>30}   {1:>30}   {2:>30}   {3:>30}"
     print row_format.format("Macro", "Macro rate", "File Count", "Estimated simulated event count")
     for mac, dir_name in mac_mapping.iteritems():
