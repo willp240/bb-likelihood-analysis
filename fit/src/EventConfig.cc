@@ -63,13 +63,22 @@ EventConfig::SetNtupBaseDir(const std::string& s_){
 
 std::string
 EventConfig::GetPrunedPath() const{
-  return fPrunedDir;
+  return fPrunedPath;
 }
 
 void
 EventConfig::SetPrunedPath(const std::string& s_){
-  fPrunedDir = s_;
+  fPrunedPath = s_;
+}
+
+std::string
+EventConfig::GetMCSplitPath() const{
+  return fMCSplitPath;
+}
+
+void
+EventConfig::SetMCSplitPath(const std::string& s_){
+  fMCSplitPath = s_;
 }
 
 }
-

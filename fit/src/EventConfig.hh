@@ -29,12 +29,16 @@ public:
   std::string GetPrunedPath() const;
   void SetPrunedPath(const std::string&);
 
+  std::string GetMCSplitPath() const;
+  void SetMCSplitPath(const std::string&);
+
 private:
   double fRate;
   int    fNgenerated;
   std::vector<std::string> fNtupFiles;
   std::string fNtupBaseDir; // the originals
-  std::string fPrunedDir;   // the pruned ouput
+  std::string fPrunedPath;   // the pruned ouput
+  std::string fMCSplitPath;   // after the fake data split
   std::string fTexLabel;
   std::string fName;
 };
