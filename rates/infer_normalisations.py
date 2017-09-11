@@ -1,5 +1,6 @@
 from glob import glob
 import os
+import re
 
 def needs_rescale(filename, cut_names):
     ''' Check if this macro includes a cut that should prompt us to rescale
@@ -72,11 +73,13 @@ def find_dir(top_dir, mac_name):
     for x in os.listdir(top_dir):
         x = os.path.join(top_dir, x)
         base_name = os.path.splitext(os.path.basename(mac_name))[0]
-        try:
-            if os.path.isdir(x) and base_name.lower() in glob(os.path.join(x, "*.root"))[0].lower():
+
+        try:            
+            if os.path.isdir(x) and re.search("TeLoaded{0}_r\d+_s\d+_p\d+.ntuple.root".format(base_name).lower(), glob(os.path.join(x, "*.root"))[0].lower()) is not None:
                 return x
         except IndexError as e:
-            print "Warning: no ROOT files in {0}".format(x)
+#            print "Warning: no ROOT files in {0}".format(x)
+            pass
 
 def map_macros_to_dirs(top_dir, mac_names):
     ''' Find the mc subdirectory that corresponds to a set of macros
@@ -88,6 +91,12 @@ def map_macros_to_dirs(top_dir, mac_names):
     for x in mac_names:
         mapping[x] = find_dir(top_dir, x)
     return mapping
+
+def dump_to_json(jsfile, result):
+    ''' You guessed it
+    '''
+    with open(jsfile, "w") as f:
+        f.write(json.dumps(dict( (x, (y , z)) for (x, y, z) in result )))
             
 if __name__ == "__main__":
     import argparse
