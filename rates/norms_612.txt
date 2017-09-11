@@ -1,0 +1,6 @@
+Assuming a simulation time of 1.0 ..
+
+
+                         Macro                       Macro rate                       File Count   Estimated simulated event count
+             Tl208_hdropes.mac                         0.000634                            13150                        262918785
+                  Tl208_av.mac                         0.000232                             3923                         28702048
