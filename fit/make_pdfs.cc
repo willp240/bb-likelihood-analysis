@@ -93,7 +93,7 @@ int main(int argc, char *argv[]){
     CutLog log(cutCol.GetCutNames());
 
     // find the dataset
-    DataSet* dataSet = new ROOTNtuple(it->second.GetPrunedPath(), "pruned");
+    DataSet* dataSet = new ROOTNtuple(it->second.GetMCSplitPath(), "pruned");
     
     // create and fill
     BinnedED dist = DistBuilder::Build(it->first, pConfig, dataSet);
