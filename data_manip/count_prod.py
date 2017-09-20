@@ -1,6 +1,7 @@
 ''' Count the files and events for the production data
 '''
 import glob
+import sys
 import ROOT
 import os
 import json
@@ -32,6 +33,8 @@ def examine_directory(dirname, tree_name):
     returnlist = []
     for root, dirs, files in os.walk(dirname):
         root_files = os.path.join(root, "*.root")
+        print "Counting ", root_files
+        sys.stdout.flush()
         files = count_files(root_files)
         evs = 0
         if files:
@@ -46,6 +49,7 @@ def examine_files(path, tree):
     :returns list( ("name", int , int) ): dirname, nfiles, nevents
     '''
     print "Counting", path, "..."
+    sys.stdout.flush()
     return [(os.path.basename(path), count_files(path), count_events(path, tree))]
 
 def format_result(result):
@@ -74,14 +78,17 @@ def dump_to_json(jsfile, result):
 
 if __name__ == "__main__":
     import argparse
-
     parser = argparse.ArgumentParser()
-    parser.add_argument("path", type = str)
+    parser.add_argument("paths", type = str, nargs="+")
     parser.add_argument("-tree", type = str, default = "output")
     parser.add_argument("-to_json", type = str, dest = "jsfile", default = None)
-    parser.add_argument("-to_json", type = str, dest = "jsfile", default = None) 
     args = parser.parse_args()
-    result = examine_path(args.path, args.tree)
+
+    result = []
+    for path in args.paths:
+        print "Top level path = ", path, "\n\n"
+        result += examine_path(path, args.tree)
+
     if args.jsfile is not None:
         dump_to_json(args.jsfile, result)
 
