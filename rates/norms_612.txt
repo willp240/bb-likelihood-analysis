@@ -1,4 +1,4 @@
-Assuming a simulation time of 1.0 ..
+Assuming a simulation time of 1.0yr ..
 
 
                          Macro                       Macro rate                       File Count   Estimated simulated event count
