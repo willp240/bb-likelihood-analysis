@@ -32,6 +32,9 @@ public:
   std::string GetMCSplitPath() const;
   void SetMCSplitPath(const std::string&);
 
+  bool GetRandomSplit() const;
+  void SetRandomSplit(bool);
+
 private:
   double fRate;
   int    fNgenerated;
@@ -41,6 +44,7 @@ private:
   std::string fMCSplitPath;   // after the fake data split
   std::string fTexLabel;
   std::string fName;
+  bool fRandomSplit;
 };
 }
 

@@ -3,6 +3,7 @@
 #include <ConfigLoader.hh>
 #include <map>
 #include <algorithm>
+#include <Exceptions.h>
 
 namespace bbfit{
 
@@ -24,13 +25,23 @@ EventConfigLoader::LoadOne(const std::string& name_) const{
 
   double rate;
   int    nGenerated;
+  bool   randomSplit;
   std::string texLabel;
+  std::string splitMethod;
   std::vector<std::string> ntupFiles;
 
   ConfigLoader::Load(name_, "rate", rate);
   ConfigLoader::Load(name_, "n_generated", nGenerated);
   ConfigLoader::Load(name_, "texLabel", texLabel);
   ConfigLoader::Load(name_, "ntup_files", ntupFiles);
+  ConfigLoader::Load(name_, "split_method", splitMethod);
+
+  if(splitMethod == "random")
+    randomSplit = true;
+  else if(splitMethod == "sequential")
+    randomSplit = false;
+  else
+    throw ValueError("Don't know how to split data by " + splitMethod + " options are random and sequential");
 
   EventConfig retVal;
   retVal.SetRate(rate);
@@ -41,25 +52,28 @@ EventConfigLoader::LoadOne(const std::string& name_) const{
   retVal.SetNtupBaseDir(baseDir);
   retVal.SetPrunedPath(prunedDir+ "/" + name_ + ".root");
   retVal.SetMCSplitPath(splitDir + "/" + name_ + ".root");
+  retVal.SetRandomSplit(randomSplit);
   return retVal;
 }
 
 std::map<std::string, EventConfig>
 EventConfigLoader::LoadActive() const{
-  typedef std::vector<std::string> StringVec;
+  typedef std::set<std::string> StringSet;
   typedef std::map<std::string, EventConfig> EventConfigMap;
   ConfigLoader::Open(fPath);
 
-  StringVec toLoad;
-  ConfigLoader::Load("summary", "active", toLoad);
+  StringSet toLoad;
+  StringSet dontLoad;
 
+  ConfigLoader::Load("summary", "active", toLoad);
+  ConfigLoader::Load("summary", "inactive", dontLoad);
   //  if all is in the list, just do all of them
   if(std::find(toLoad.begin(), toLoad.end(), "all") != toLoad.end())
-    return LoadAll();
+    return LoadAll(dontLoad);
 
   EventConfigMap evMap;
-  for(size_t i = 0; i < toLoad.size(); i++)
-    evMap[toLoad.at(i)] = LoadOne(toLoad.at(i));
+  for(StringSet::iterator it = toLoad.begin(); it != toLoad.end(); ++it)
+    evMap[*it] = LoadOne(*it);
 
   return evMap;
 }
@@ -69,7 +83,7 @@ EventConfigLoader::~EventConfigLoader(){
 }
 
 std::map<std::string, EventConfig>
-EventConfigLoader::LoadAll() const{
+EventConfigLoader::LoadAll(const std::set<std::string>& except_) const{
   typedef std::set<std::string> StringSet;
   StringSet toLoad = ConfigLoader::ListSections();
   toLoad.erase("summary");
@@ -77,7 +91,8 @@ EventConfigLoader::LoadAll() const{
   std::map<std::string, EventConfig> evMap;
   for(StringSet::iterator it = toLoad.begin(); it != toLoad.end();
       ++it){
-    evMap[*it] = LoadOne(*it);
+    if(!except_.count(*it))
+      evMap[*it] = LoadOne(*it);
   }
   return evMap;
 }

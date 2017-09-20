@@ -81,4 +81,13 @@ EventConfig::SetMCSplitPath(const std::string& s_){
   fMCSplitPath = s_;
 }
 
+bool
+EventConfig::GetRandomSplit() const{
+  return fRandomSplit;
+}
+
+void
+EventConfig::SetRandomSplit(bool b_){
+  fRandomSplit = b_;
+}
 }
