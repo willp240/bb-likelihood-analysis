@@ -52,9 +52,12 @@ install:
 	ln -sf `readlink -f bin/make_trees` $(PREFIX)
 	ln -sf `readlink -f bin/split_data` $(PREFIX)
 	ln -sf `readlink -f bin/fit_dataset` $(PREFIX)
+	ln -sf `readlink -f bin/fit_dataset_batch` $(PREFIX)
 	chmod +x bin/make_pdfs
 	chmod +x bin/make_trees
 	chmod +x bin/split_data
+	chmod +x bin/fit_dataset
+	chmod +x bin/fit_dataset_batch
 
 clean:
 	rm -f bin/make_pdfs

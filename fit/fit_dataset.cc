@@ -1,9 +1,7 @@
 #include <string>
-#include <DistConfigLoader.hh>
 #include <FitConfigLoader.hh>
 #include <CutConfigLoader.hh>
 #include <FitConfigLoader.hh>
-#include <DistConfig.hh>
 #include <FitConfig.hh>
 #include <CutFactory.hh>
 #include <CutCollection.h>
@@ -20,21 +18,18 @@ using namespace bbfit;
 
 void
 Fit(const std::string& mcmcConfigFile_, 
-    const std::string& distConfigFile_,
+    const std::string& distDir_,
     const std::string& cutConfigFile_, 
-    const std::string& dataPath_){
+    const std::string& dataPath_,
+    const std::string& outDirOverride_){
   
   // Load up the configuration data
-  DistConfig dConfig;
   FitConfig mcConfig;
   
   typedef std::map<std::string, CutConfig> CutMap;
   CutMap cutConfs;
 
   {
-    DistConfigLoader dLoader(distConfigFile_);
-    dConfig = dLoader.Load();
-
     FitConfigLoader mcLoader(mcmcConfigFile_);
     mcConfig = mcLoader.LoadActive();
     
@@ -58,7 +53,6 @@ Fit(const std::string& mcmcConfigFile_,
   
 
   // Load up the dists
-  std::string distDir = dConfig.GetPDFDir();
   std::vector<BinnedED> dists;
   
   // the ones you actually want to fit are those listed in mcmcconfig
@@ -67,7 +61,7 @@ Fit(const std::string& mcmcConfigFile_,
 
   for(StringSet::iterator it = distsToFit.begin(); it != distsToFit.end();
       ++it){
-    std::string distPath = distDir + "/" + *it + ".h5";
+    std::string distPath = distDir_ + "/" + *it + ".h5";
     dists.push_back(BinnedED(*it, IO::LoadHistogram(distPath)));
   }
   
@@ -115,6 +109,9 @@ Fit(const std::string& mcmcConfigFile_,
 
   // Now save the results
   std::string outDir = mcConfig.GetOutDir();
+  if(outDirOverride_ != "")
+    outDir = outDirOverride_;
+
   std::string projDir1D = outDir + "/1dlhproj";
   std::string projDir2D = outDir + "/2dlhproj";
   std::string scaledDistDir = outDir + "/scaled_dists";
@@ -168,16 +165,32 @@ Fit(const std::string& mcmcConfigFile_,
 
   // and a copy of all of the configurations used
   std::ifstream if_a(mcmcConfigFile_.c_str(), std::ios_base::binary);
-  std::ifstream if_b(distConfigFile_.c_str(), std::ios_base::binary);
-  std::ifstream if_c(cutConfigFile_.c_str(),  std::ios_base::binary);
+  std::ifstream if_b(cutConfigFile_.c_str(),  std::ios_base::binary);
   
-  std::ofstream of("configs_used.txt", std::ios_base::binary);
+  std::ofstream of("log.txt", std::ios_base::binary);
   
-  of << if_a.rdbuf()
-     << "\n\n\n" << if_b.rdbuf()
-     << "\n\n\n" << if_c.rdbuf();
+  of << "dists from : " << distDir_
+     << "\n\n\n" << "data set fit : " << dataPath_
+     << "\n\n\n" << if_a.rdbuf()
+     << "\n\n\n" << if_b.rdbuf();
   
 }
-int main(){
+
+int main(int argc, char *argv[]){
+  if (argc < 4 || argc > 5){
+    std::cout << "\nUsage: fit_dataset <fit_config_file> <pdf_dir> <cut_config_file> <data_to_fit> <(opt) outdir_override>" << std::endl;
+      return 1;
+  }
+
+  std::string fitConfigFile(argv[1]);
+  std::string pdfPath(argv[2]);
+  std::string cutConfigFile(argv[3]);
+  std::string dataPath(argv[4]);
+  std::string outDirOverride;
+  if(argc == 5)
+    outDirOverride = std::string(argv[5]);
+
+  Fit(fitConfigFile, pdfPath, cutConfigFile, dataPath, outDirOverride);
+
   return 0;
 }
