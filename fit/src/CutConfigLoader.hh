@@ -2,7 +2,7 @@
 #define __BBFIT__CutConfigLoader__
 #include <string>
 #include <CutConfig.hh>
-#include <map>
+#include <vector>
 
 namespace bbfit{
 class CutConfig;
@@ -11,8 +11,7 @@ public:
   CutConfigLoader(const std::string& filePath_);
   ~CutConfigLoader();
   CutConfig LoadOne(const std::string& name_) const;
-  std::map<std::string, CutConfig> LoadActive() const;
-  std::map<std::string, CutConfig> LoadAll() const;
+  std::vector<CutConfig> LoadActive() const;
 
 private:
   std::string fPath;

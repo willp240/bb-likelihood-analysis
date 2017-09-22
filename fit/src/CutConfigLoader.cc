@@ -33,42 +33,24 @@ CutConfigLoader::LoadOne(const std::string& name_) const{
   return retVal;
 }
 
-std::map<std::string, CutConfig>
+std::vector<CutConfig>
 CutConfigLoader::LoadActive() const{
   typedef std::vector<std::string> StringVec;
-  typedef std::map<std::string, CutConfig> CutConfigMap;
+  typedef std::vector<CutConfig> CutConfigVec;
   ConfigLoader::Open(fPath);
 
   StringVec toLoad;
   ConfigLoader::Load("summary", "order", toLoad);
 
-  //  if all is in the list, just do all of them
-  if(std::find(toLoad.begin(), toLoad.end(), "all") != toLoad.end())
-    return LoadAll();
-
-  CutConfigMap evMap;
+  CutConfigVec evVec;
   for(size_t i = 0; i < toLoad.size(); i++)
-    evMap[toLoad.at(i)] = LoadOne(toLoad.at(i));
+    evVec.push_back(LoadOne(toLoad.at(i)));
 
-  return evMap;
+  return evVec;
 }
 
 CutConfigLoader::~CutConfigLoader(){ 
   ConfigLoader::Close();
-}
-
-std::map<std::string, CutConfig>
-CutConfigLoader::LoadAll() const{
-  typedef std::set<std::string> StringSet;
-  StringSet toLoad = ConfigLoader::ListSections();
-  toLoad.erase("summary");
-
-  std::map<std::string, CutConfig> evMap;
-  for(StringSet::iterator it = toLoad.begin(); it != toLoad.end();
-      ++it)
-    evMap[*it] = LoadOne(*it);
-
-  return evMap;
 }
 
 }
