@@ -2,6 +2,8 @@ CXX=g++
 ROOT_FLAGS=`root-config --cflags --libs `
 G4_FLAGS=`geant4-config --cflags --libs`
 
+GSL_FLAGS=-lgsl
+
 OXSX_ROOT ?=
 OXSX_INC=$(OXSX_ROOT)/include
 OXSX_LIB_DIR=$(OXSX_ROOT)/build 
@@ -20,11 +22,15 @@ LIB_NAME=bbfit
 
 LIB=$(LIB_DIR)/lib$(LIB_NAME).a
 
-all: bin/make_pdfs bin/make_trees bin/split_data bin/fit_dataset
+all: bin/make_pdfs bin/make_trees bin/split_data bin/fit_dataset bin/up_count_lim
 
 bin/fit_dataset: fit_dataset.cc $(LIB)
 	mkdir -p bin
 	$(CXX)  fit_dataset.cc -I$(INC_DIR) -I$(OXSX_INC) -w -L$(LIB_DIR) -L$(OXSX_LIB_DIR) -l$(LIB_NAME) -l$(OXSX_LIB_NAME)  $(ROOT_FLAGS) $(G4_FLAGS) $(H5_LIBS) -larmadillo -o $@
+
+bin/up_count_lim: up_count_lim.cc $(LIB)
+	mkdir -p bin
+	$(CXX)  up_count_lim.cc -I$(INC_DIR) -I$(OXSX_INC) -w -L$(LIB_DIR) -L$(OXSX_LIB_DIR) -l$(LIB_NAME) -l$(OXSX_LIB_NAME)  $(ROOT_FLAGS) $(G4_FLAGS) $(H5_LIBS) $(GSL_FLAGS) -larmadillo -o $@
 
 bin/make_pdfs: make_pdfs.cc $(LIB)
 	mkdir -p bin
@@ -53,21 +59,25 @@ install:
 	ln -sf `readlink -f bin/split_data` $(PREFIX)
 	ln -sf `readlink -f bin/fit_dataset` $(PREFIX)
 	ln -sf `readlink -f bin/fit_dataset_batch` $(PREFIX)
+	ln -sf `readlink -f bin/up_count_lim` $(PREFIX)
 	chmod +x bin/make_pdfs
 	chmod +x bin/make_trees
 	chmod +x bin/split_data
 	chmod +x bin/fit_dataset
 	chmod +x bin/fit_dataset_batch
+	chmod +x bin/up_count_lim
 
 clean:
 	rm -f bin/make_pdfs
 	rm -f bin/make_trees
 	rm -f bin/split_data
 	rm -f bin/fit_dataset
+	rm -f bin/up_count_lim
 
 	rm -f build/*.o
 	rm -f lib/libbbfit.a
 	rm -f $(PREFIX)/make_pdfs
 	rm -f $(PREFIX)/make_trees
-	rm -f $(PREFIX)/split_data		
+	rm -f $(PREFIX)/split_data
 	rm -f $(PREFIX)/fit_dataset
+	rm -f $(PREFIX)/up_count_lim

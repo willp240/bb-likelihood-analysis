@@ -2,5 +2,9 @@
 *~
 *.pyc
 data/*
-fit/bin
-fit/pdfs
+fit/bin/make_trees
+fit/bin/split_data
+fit/bin/make_pdfs
+fit/bin/fit_dataset
+fit/bin/up_count_lim
+fit/lib/*
