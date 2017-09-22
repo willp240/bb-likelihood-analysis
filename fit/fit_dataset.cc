@@ -1,5 +1,8 @@
 #include <string>
 #include <FitConfigLoader.hh>
+#include <DistConfigLoader.hh>
+#include <DistConfig.hh>
+#include <DistBuilder.hh>
 #include <CutConfigLoader.hh>
 #include <FitConfigLoader.hh>
 #include <FitConfig.hh>
@@ -18,34 +21,66 @@ using namespace bbfit;
 
 void
 Fit(const std::string& mcmcConfigFile_, 
-    const std::string& distDir_,
+    const std::string& distConfigFile_,
     const std::string& cutConfigFile_, 
     const std::string& dataPath_,
     const std::string& outDirOverride_){
-  
-  // Load up the configuration data
-  FitConfig mcConfig;
-  
-  typedef std::map<std::string, CutConfig> CutMap;
-  CutMap cutConfs;
 
-  {
-    FitConfigLoader mcLoader(mcmcConfigFile_);
-    mcConfig = mcLoader.LoadActive();
+    // Load up the configuration data
+    FitConfig mcConfig;
+  
+    typedef std::vector<CutConfig> CutVec;
+    CutVec cutConfs;
     
-    CutConfigLoader cutConfLoader(cutConfigFile_);
-    cutConfs = cutConfLoader.LoadActive();
-  }
+    {
+        FitConfigLoader mcLoader(mcmcConfigFile_);
+        mcConfig = mcLoader.LoadActive();
+    
+        CutConfigLoader cutConfLoader(cutConfigFile_);
+        cutConfs = cutConfLoader.LoadActive();
+    }
+    
+
+
+    // create the output directories
+    std::string outDir = mcConfig.GetOutDir();
+    if(outDirOverride_ != "")
+        outDir = outDirOverride_;
+    
+    std::string projDir1D = outDir + "/1dlhproj";
+    std::string projDir2D = outDir + "/2dlhproj";
+    std::string scaledDistDir = outDir + "/scaled_dists";
+    
+    struct stat st = {0};
+    if (stat(outDir.c_str(), &st) == -1) {
+        mkdir(outDir.c_str(), 0700);
+    }
+    
+    st = {0};
+    if (stat(projDir1D.c_str(), &st) == -1) {
+        mkdir(projDir1D.c_str(), 0700);
+    }
+    
+    st = {0};
+    if (stat(projDir2D.c_str(), &st) == -1) {
+        mkdir(projDir2D.c_str(), 0700);
+    }
+    
+    st = {0};
+    if (stat(scaledDistDir.c_str(), &st) == -1) {
+        mkdir(scaledDistDir.c_str(), 0700);
+    }
+        
 
   // Make the cuts
   CutCollection cutCol;
-  for(CutMap::iterator it = cutConfs.begin(); it != cutConfs.end();
+  for(CutVec::iterator it = cutConfs.begin(); it != cutConfs.end();
       ++it){
-    std::string name = it->first;
-    std::string type = it->second.GetType();
-    std::string obs = it->second.GetObs();
-    double val = it->second.GetValue();
-    double val2 = it->second.GetValue2();
+    std::string name = it->GetName();
+    std::string type = it->GetType();
+    std::string obs = it->GetObs();
+    double val = it->GetValue();
+    double val2 = it->GetValue2();
     Cut *cut = CutFactory::New(name, type, obs, val, val2);
     cutCol.AddCut(*cut);
     delete cut; // cut col takes its own copy
@@ -53,26 +88,45 @@ Fit(const std::string& mcmcConfigFile_,
   
 
   // Load up the dists
+  DistConfigLoader dLoader(distConfigFile_);
+  DistConfig pConfig = dLoader.Load();
+  std::string distDir = pConfig.GetPDFDir();
+
   std::vector<BinnedED> dists;
+  
   
   // the ones you actually want to fit are those listed in mcmcconfig
   typedef std::set<std::string> StringSet;
   StringSet distsToFit = mcConfig.GetParamNames();
+  
 
   for(StringSet::iterator it = distsToFit.begin(); it != distsToFit.end();
       ++it){
-    std::string distPath = distDir_ + "/" + *it + ".h5";
+    std::string distPath = distDir + "/" + *it + ".h5";
     dists.push_back(BinnedED(*it, IO::LoadHistogram(distPath)));
   }
+
   
   // Load up the data set
   ROOTNtuple dataToFit(dataPath_, "oxsx_saved");
-    
+  
+  // Log the effects of the cuts
+  CutLog log(cutCol.GetCutNames());
+  
+  // and bin the data inside
+  BinnedED dataDist = DistBuilder::Build("data", pConfig, (DataSet*)&dataToFit, cutCol, log);
+
+  // 
+  std::ofstream ofs((outDir + "/data_cut_log.txt").c_str());
+  ofs << "Cut log for data set " << dataPath_ << std::endl;
+  ofs << log.AsString() << std::endl;
+  ofs.close();
+  
   // now build the likelihood
   BinnedNLLH lh;
   lh.AddPdfs(dists);
   lh.SetCuts(cutCol);
-  lh.SetDataSet(&dataToFit);
+  lh.SetDataDist(dataDist);
 
   // and now the optimiser
   MetropolisHastings mh;
@@ -108,39 +162,20 @@ Fit(const std::string& mcmcConfigFile_,
   FitResult res = mh.Optimise(&lh);
 
   // Now save the results
-  std::string outDir = mcConfig.GetOutDir();
-  if(outDirOverride_ != "")
-    outDir = outDirOverride_;
-
-  std::string projDir1D = outDir + "/1dlhproj";
-  std::string projDir2D = outDir + "/2dlhproj";
-  std::string scaledDistDir = outDir + "/scaled_dists";
-
-  struct stat st = {0};
-  if (stat(outDir.c_str(), &st) == -1) {
-    mkdir(outDir.c_str(), 0700);
-  }
-
-  st = {0};
-  if (stat(projDir1D.c_str(), &st) == -1) {
-    mkdir(projDir1D.c_str(), 0700);
-  }
-
-  st = {0};
-  if (stat(projDir2D.c_str(), &st) == -1) {
-    mkdir(projDir2D.c_str(), 0700);
-  }
-
-  st = {0};
-  if (stat(scaledDistDir.c_str(), &st) == -1) {
-    mkdir(scaledDistDir.c_str(), 0700);
-  }
-
   res.SaveAs(outDir + "/fit_result.txt");
   
+  std::cout << "Saved fit result to " << outDir + "/fit_result.txt"
+            << std::endl;
+
   // save the histograms
   HistMap proj1D = res.Get1DProjections();
   HistMap proj2D = res.Get2DProjections();
+
+  std::cout << "Saving LH projections to \n\t" 
+            << projDir1D
+            << "\n\t"
+            << projDir2D
+            << std::endl;
 
   for(HistMap::iterator it = proj1D.begin(); it != proj1D.end();
       ++it){
@@ -154,6 +189,9 @@ Fit(const std::string& mcmcConfigFile_,
 
   // scale the distributions to the correct heights
   // they are named the same as their fit parameters
+  std::cout << "Saving scaled histograms and data to \n\t"
+            << scaledDistDir << std::endl;
+
   ParameterDict bestFit = res.GetBestFit();
   for(size_t i = 0; i < dists.size(); i++){
     std::string name = dists.at(i).GetName();
@@ -163,13 +201,16 @@ Fit(const std::string& mcmcConfigFile_,
 		      scaledDistDir + "/" + name + ".root");
   }
 
+  // and also save the data
+  IO::SaveHistogram(dataDist.GetHistogram(), scaledDistDir + "/" + "data.root");
+
   // and a copy of all of the configurations used
   std::ifstream if_a(mcmcConfigFile_.c_str(), std::ios_base::binary);
   std::ifstream if_b(cutConfigFile_.c_str(),  std::ios_base::binary);
   
-  std::ofstream of("log.txt", std::ios_base::binary);
+  std::ofstream of((outDir + "/config_log.txt").c_str(), std::ios_base::binary);
   
-  of << "dists from : " << distDir_
+  of << "dists from : " << distDir
      << "\n\n\n" << "data set fit : " << dataPath_
      << "\n\n\n" << if_a.rdbuf()
      << "\n\n\n" << if_b.rdbuf();
@@ -177,8 +218,8 @@ Fit(const std::string& mcmcConfigFile_,
 }
 
 int main(int argc, char *argv[]){
-  if (argc < 4 || argc > 5){
-    std::cout << "\nUsage: fit_dataset <fit_config_file> <pdf_dir> <cut_config_file> <data_to_fit> <(opt) outdir_override>" << std::endl;
+  if (argc != 5 && argc != 6){
+    std::cout << "\nUsage: fit_dataset <fit_config_file> <dist_config_file> <cut_config_file> <data_to_fit> <(opt) outdir_override>" << std::endl;
       return 1;
   }
 
@@ -187,7 +228,7 @@ int main(int argc, char *argv[]){
   std::string cutConfigFile(argv[3]);
   std::string dataPath(argv[4]);
   std::string outDirOverride;
-  if(argc == 5)
+  if(argc == 6)
     outDirOverride = std::string(argv[5]);
 
   Fit(fitConfigFile, pdfPath, cutConfigFile, dataPath, outDirOverride);
