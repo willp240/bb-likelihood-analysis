@@ -68,18 +68,19 @@ int main(int argc, char *argv[]){
 
 
   // create the cuts
-  typedef std::map<std::string, CutConfig> CutMap;
+  typedef std::vector<CutConfig> CutVec;
   CutConfigLoader cutConfLoader(cutConfigFile);
-  CutMap cutConfs = cutConfLoader.LoadActive();
-  
+  CutVec cutConfs = cutConfLoader.LoadActive();
+
+
   CutCollection cutCol;
-  for(CutMap::iterator it = cutConfs.begin(); it != cutConfs.end();
+  for(CutVec::iterator it = cutConfs.begin(); it != cutConfs.end();
       ++it){
-    std::string name = it->first;
-    std::string type = it->second.GetType();
-    std::string obs = it->second.GetObs();
-    double val = it->second.GetValue();
-    double val2 = it->second.GetValue2();
+    std::string name = it->GetName();
+    std::string type = it->GetType();
+    std::string obs = it->GetObs();
+    double val = it->GetValue();
+    double val2 = it->GetValue2();
     Cut *cut = CutFactory::New(name, type, obs, val, val2);
     cutCol.AddCut(*cut);
     delete cut; // cut col takes its own copy
@@ -93,12 +94,18 @@ int main(int argc, char *argv[]){
     CutLog log(cutCol.GetCutNames());
 
     // find the dataset
-    DataSet* dataSet = new ROOTNtuple(it->second.GetMCSplitPath(), "pruned");
-    
+    DataSet* dataSet;
+    try{
+        dataSet = new ROOTNtuple(it->second.GetMCSplitPath(), "oxsx_saved");
+    }
+    catch(const IOError& e_){
+        std::cout << "Warning: skipping " << it-> first << " couldn't open data set:\n\t" << e_.what() << std::endl;
+        continue;
+    }
+
     // create and fill
-    BinnedED dist = DistBuilder::Build(it->first, pConfig, dataSet);
-    DistFiller::FillDist(dist, *dataSet, cutCol, log);
-    
+    BinnedED dist = DistBuilder::Build(it->first, pConfig, dataSet, cutCol, log);
+
     delete dataSet;
 
     // normalise
@@ -107,7 +114,6 @@ int main(int argc, char *argv[]){
 
     // save a copy of the cut log
     log.SaveAs(it->first, pdfDir + "/" + it->first + ".txt");
-
 
     // save as hdf5 obj and root 
     // 1D, just save them
@@ -120,12 +126,12 @@ int main(int argc, char *argv[]){
 
       // save them as apropriate
       for(size_t i = 0; i < projs.size(); i++){
-	const BinnedED& proj = projs.at(i);
+          const BinnedED& proj = projs.at(i);
 
-	if(projs.at(i).GetNDims() == 1)
-	  DistTools::ToTH1D(proj).SaveAs((projDir + "/" + proj.GetName() + ".root").c_str());
-	else
-	  DistTools::ToTH2D(proj).SaveAs((projDir + "/" + proj.GetName() + ".root").c_str());
+          if(projs.at(i).GetNDims() == 1)
+              DistTools::ToTH1D(proj).SaveAs((projDir + "/" + proj.GetName() + ".root").c_str());
+          else
+              DistTools::ToTH2D(proj).SaveAs((projDir + "/" + proj.GetName() + ".root").c_str());
       }
     }
 
