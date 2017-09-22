@@ -2,6 +2,7 @@
 #include <ConfigLoader.hh>
 #include <set>
 #include <cmath>
+#include <algorithm>
 
 namespace bbfit{
 
@@ -20,11 +21,12 @@ FitConfigLoader::LoadActive() const{
   int it;
   int burnIn;
   std::string outDir;
+  std::string dataSet;
 
   ConfigLoader::Load("summary", "iterations", it);
   ConfigLoader::Load("summary", "burn_in", burnIn);
   ConfigLoader::Load("summary", "output_directory", outDir);
-  
+
   ret.SetOutDir(outDir);
   ret.SetIterations(it);
   ret.SetBurnIn(burnIn);
@@ -38,6 +40,12 @@ FitConfigLoader::LoadActive() const{
   double max;
   double sig;
   int    nbins;  
+
+  if(std::find(toLoad.begin(), toLoad.end(), "all") != toLoad.end()){
+      toLoad = ConfigLoader::ListSections();
+      toLoad.erase("summary");
+  }
+  
   for(StringSet::iterator it = toLoad.begin(); it != toLoad.end(); ++it){
     name = *it;
     ConfigLoader::Load(name, "min", min);
