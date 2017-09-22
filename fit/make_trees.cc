@@ -102,7 +102,6 @@ int main(int argc, char *argv[]){
   typedef std::map<std::string, bbfit::EventConfig> EvMap;
   typedef std::vector<std::string> StringVec;
   EvMap toGet = loader.LoadActive();
-  std::cout << toGet.size() << std::endl;
 
   // if there is a common path preprend it
   for(EvMap::iterator it = toGet.begin(); it != toGet.end(); ++it){
