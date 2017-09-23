@@ -1,3 +1,4 @@
+
 #include <TChain.h>
 #include <TFile.h>
 #include <TNtuple.h>
@@ -28,7 +29,7 @@ MakeDataSet(const std::vector<std::string>& filenames_,
 
   // output ntuple
   TFile outp(outFilename_.c_str(), "RECREATE");
-  TNtuple nt("pruned", "", "energy:scintFit:reff:qmcdep:bipoCumul:biPoLikelihood214");
+  TNtuple nt("pruned", "", "energy:fitValid:reff:qmcdep:bipoCumul:biPoLikelihood214:itr");
  
   // read the original data
   for(size_t iFile = 0; iFile < filenames_.size(); iFile++){
@@ -50,7 +51,7 @@ MakeDataSet(const std::vector<std::string>& filenames_,
     Double_t itr;
 
     c.SetBranchAddress("energy", &e);
-    c.SetBranchAddress("scintFit", &v);
+    c.SetBranchAddress("fitValid", &v);
     c.SetBranchAddress("posx", &x);
     c.SetBranchAddress("posy", &y);
     c.SetBranchAddress("posz", &z);
