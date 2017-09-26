@@ -10,7 +10,7 @@
 #include <Formatter.hpp>
 #include <ConfigLoader.hh>
 #include <sys/stat.h>
-
+#include <Rand.h>
 using namespace bbfit;
 
 void
@@ -42,6 +42,8 @@ MakeDataSets(const std::string& configFile_, double liveTime_, int nDataSets_){
       std::cout << "Warning:: skipping " << it->first << "  no events to choose from" << std::endl;
       continue;
     }
+
+    Rand::SetSeed(0);
 
     dataSets.push_back(ds);
     names.push_back(it->first);
