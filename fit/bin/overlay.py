@@ -47,6 +47,7 @@ if __name__ == "__main__":
     import argparse
     import glob
     import os
+    import math
     parser = argparse.ArgumentParser()
     parser.add_argument("plot_config", type = str)
     parser.add_argument("event_config", type = str)
@@ -59,7 +60,8 @@ if __name__ == "__main__":
     # read 
     scaled_dists_p = [ x for x in glob.glob(os.path.join(args.result_dir, "scaled_dists", "*.root")) if not x.endswith("data.root")]
     names = [os.path.basename(x).split(".root")[0] for x in scaled_dists_p]
-
+    
+    
     scaled_dists = {}
     for name, path in zip(names, scaled_dists_p):
         scaled_dists[name] = grab_hist(path)
@@ -88,8 +90,15 @@ if __name__ == "__main__":
 
         except ConfigParser.NoSectionError as e:
             pass
+    colors = {}
+    for name in grouper.hists.keys():
+        try:
+            colors[name] =  parser.get(name, "color")
+        except ConfigParser.NoSectionError as e:
+            colors[name] = "aaaaaa"
+        except ConfigParser.NoSectionError as e:
+            colors[name] = "aaaaaa"
 
-    colors = dict((name, parser.get(name, "color")) for name in grouper.hists.keys())
     order  = parser.get("summary", "plot_order").split(",")
     x_title  = parser.get("titles", "x_axis")
     y_title  = parser.get("titles", "y_axis")
@@ -117,6 +126,17 @@ if __name__ == "__main__":
         except ZeroDivisionError as e:
             print "zero probability bin! #", i, "  @ ", s_hist.GetXaxis().GetBinCenter(i)
     
+            
+    print "\n\nchisq/bin = ", chi_square, " / ", s_hist.GetNbinsX()
+    print "p-value = ", ROOT.TMath.Prob(chi_square, s_hist.GetNbinsX())
 
-    print "\n\nchisq/ndf = ", chi_square, " / ", len(scaled_dists)
-    print "p-value = ", ROOT.TMath.Prob(chi_square, len(scaled_dists))
+
+    print "Integrals:\n"
+    print "\t Fake Data : ", data.Integral()
+    print "\t Stack : ", s_hist.Integral()
+    print "\t Sigma  : ", (data.Integral() - s_hist.Integral())/math.sqrt(s_hist.Integral())
+    # now calculate the diff
+    s_hist.Sumw2()
+    data.Add(s_hist, -1)
+    data.SaveAs(os.path.join(args.result_dir, "fit_diff.root"))
+
