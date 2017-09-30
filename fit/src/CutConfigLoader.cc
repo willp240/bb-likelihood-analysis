@@ -20,10 +20,18 @@ CutConfigLoader::LoadOne(const std::string& name_) const{
   std::string obs;
 
   ConfigLoader::Load(name_, "value", value);  
-  ConfigLoader::Load(name_, "value2", value2);
   ConfigLoader::Load(name_, "type", type);
   ConfigLoader::Load(name_, "obs", obs);
-
+  
+  try{
+      ConfigLoader::Load(name_, "value2", value2);
+  }
+  catch(const ConfigFieldMissing& ){
+      if(type != "bool")
+          throw;
+      
+  }
+  
   CutConfig retVal;
   retVal.SetName(name_);
   retVal.SetValue(value);
