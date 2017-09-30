@@ -60,17 +60,14 @@ Fit(const std::string& mcmcConfigFile_,
         mkdir(outDir.c_str(), 0700);
     }
     
-    st = {0};
     if (stat(projDir1D.c_str(), &st) == -1) {
         mkdir(projDir1D.c_str(), 0700);
     }
     
-    st = {0};
     if (stat(projDir2D.c_str(), &st) == -1) {
         mkdir(projDir2D.c_str(), 0700);
     }
     
-    st = {0};
     if (stat(scaledDistDir.c_str(), &st) == -1) {
         mkdir(scaledDistDir.c_str(), 0700);
     }

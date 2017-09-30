@@ -54,7 +54,6 @@ int main(int argc, char *argv[]){
 
   // and another one for the projections - there will be loads
   std::string projDir = pdfDir + "/projections";
-  st = {0};
   if (stat(projDir.c_str(), &st) == -1) {
     mkdir(projDir.c_str(), 0700);
   }
