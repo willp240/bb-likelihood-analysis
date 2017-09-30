@@ -66,4 +66,45 @@ FitConfig::SetOutDir(const std::string& s_){
   fOutDir = s_;
 }
 
+int
+FitConfig::GetNSteps() const{
+        return fNsteps;
+}
+
+void
+FitConfig::SetNSteps(int n_){
+    fNsteps = n_;
+}
+    
+double
+FitConfig::GetEpsilon() const{
+    return fEpsilon;
+}
+
+void
+FitConfig::SetEpsilon(double e_){
+    fEpsilon = e_;
+}
+
+
+void 
+FitConfig::AddParameter(const std::string& name_, double min_, double max_, double sigma_, int nbins_, 
+                        double constrMean_, double constrSigma_){
+    
+    fConstrMeans[name_]  = constrMean_;
+    fConstrSigmas[name_] = constrSigma_;
+
+    AddParameter(name_, min_, max_, sigma_, nbins_);
+}
+
+ParameterDict
+FitConfig::GetConstrMeans() const{
+    return fConstrMeans;
+}
+
+ParameterDict
+FitConfig::GetConstrSigmas() const{
+    return fConstrSigmas;
+}
+
 }

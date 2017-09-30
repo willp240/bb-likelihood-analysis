@@ -3,6 +3,7 @@
 #include <set>
 #include <cmath>
 #include <algorithm>
+#include <Exceptions.h>
 
 namespace bbfit{
 
@@ -20,14 +21,20 @@ FitConfigLoader::LoadActive() const{
   ConfigLoader::Open(fPath);
   int it;
   int burnIn;
+  int nSteps;
+  double epsilon;
   std::string outDir;
   std::string dataSet;
 
   ConfigLoader::Load("summary", "iterations", it);
   ConfigLoader::Load("summary", "burn_in", burnIn);
   ConfigLoader::Load("summary", "output_directory", outDir);
+  ConfigLoader::Load("summary", "n_steps", nSteps);
+  ConfigLoader::Load("summary", "epsilon", epsilon);
 
   ret.SetOutDir(outDir);
+  ret.SetNSteps(nSteps);
+  ret.SetEpsilon(epsilon);
   ret.SetIterations(it);
   ret.SetBurnIn(burnIn);
   
@@ -39,6 +46,8 @@ FitConfigLoader::LoadActive() const{
   double min;
   double max;
   double sig;
+  double constrMean;
+  double constrSigma;
   int    nbins;  
 
   if(std::find(toLoad.begin(), toLoad.end(), "all") != toLoad.end()){
@@ -52,8 +61,15 @@ FitConfigLoader::LoadActive() const{
     ConfigLoader::Load(name, "max", max);
     ConfigLoader::Load(name, "sig", sig);
     ConfigLoader::Load(name, "nbins", nbins);
-    
-    ret.AddParameter(name, min, max, sig, nbins);
+
+    try{
+        ConfigLoader::Load(name, "constraint_mean", constrMean);
+        ConfigLoader::Load(name, "constraint_sigma", constrSigma);
+        ret.AddParameter(name, min, max, sig, nbins, constrMean, constrSigma);
+    }
+    catch(const ConfigFieldMissing& e_){
+        ret.AddParameter(name, min, max, sig, nbins);
+    }
   }
 
   return ret;
