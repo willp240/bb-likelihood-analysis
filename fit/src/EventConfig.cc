@@ -10,13 +10,13 @@ EventConfig::SetRate(double r_){
   fRate = r_;
 }
 
-int
+unsigned long
 EventConfig::GetNGenerated() const{
   return fNgenerated;
 }
 
 void
-EventConfig::SetNGenerated(int n_){
+EventConfig::SetNGenerated(unsigned long n_){
   fNgenerated = n_;
 
 }
