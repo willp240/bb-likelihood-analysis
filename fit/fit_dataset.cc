@@ -17,6 +17,7 @@
 #include <IO.h>
 #include <MCMC.h>
 #include <HamiltonianSampler.h>
+#include <SigmoidBoundary.h>
 #include <MetropolisSampler.h>
 
 using namespace bbfit;
@@ -149,10 +150,13 @@ Fit(const std::string& mcmcConfigFile_,
   // Create something to do hamiltonian sampling
   ParameterDict sigmas = mcConfig.GetSigmas();
 
-  HamiltonianSampler<BinnedNLLH> sampler(lh, mcConfig.GetEpsilon(), 
-                                         mcConfig.GetNSteps());
-  sampler.SetMinima(mcConfig.GetMinima());
-  sampler.SetMaxima(mcConfig.GetMaxima());
+  typedef SigmoidBoundary<BinnedNLLH> Post_t;
+  Post_t posterior(lh, mcConfig.GetMinima(), mcConfig.GetMaxima(), 1000);
+  
+  HamiltonianSampler<Post_t> sampler(posterior, mcConfig.GetEpsilon(), 
+                                     mcConfig.GetNSteps());
+  // sampler.SetMinima(mcConfig.GetMinima());
+  // sampler.SetMaxima(mcConfig.GetMaxima());
   ParameterDict masses;
 
   for(ParameterDict::iterator it = sigmas.begin(); it != sigmas.end(); ++it)
