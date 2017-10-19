@@ -2,33 +2,92 @@ Assuming a simulation time of 1.0yr ..
 
 
                          Macro                       Macro rate                       File Count   Estimated simulated event count
+                      Na22.mac                         0.000283                              269                          2400741
   AlphaN_TeLAB_AVin_AV_13C.mac                         0.000222                             1110                          7771101
+             Te130_0n2b_n3.mac                         0.000317                               99                           989694
         Tl210_av_outerdust.mac                          5.2e-05                                1                             1639
             pmt_betagammas.mac                         0.000244                             1092                          8402704
+                     Ra228.mac                          0.00891                                2                           561971
+                     Bi214.mac                         0.000289                              492                          4484040
+                      Sc46.mac                         0.000308                               14                           135983
              Bi214_hdropes.mac                         0.001903                             9962                        597849585
             Tl208_hupropes.mac                         0.001585                             1116                         55782768
+                     Tl208.mac                         0.000172                               47                           254937
+                    Sb126m.mac                         0.000252                              183                          1454314
+          Te130_2n2b_Etail.mac                         0.000317                             6168                         61660953
               K40_intropes.mac                         0.001903                               29                          1740377
         Bi210_av_innerdust.mac                          0.00222                             6135                        429510859
  AlphaN_TeLAB_AVout_AV_13C.mac                         0.000317                              524                          5238381
                K40_hdropes.mac                            59.93                             9666                   18268280671680
+                     Rn220.mac                         0.000634                               25                           499845
+                     Th228.mac                         0.000634                               25                           499845
+                      Al26.mac                         0.000198                               21                           131126
+                      Ar39.mac                         0.002854                               19                          1710071
+               Ra226_alpha.mac                         0.000951                               62                          1859425
+                       Y90.mac                         0.000317                                5                            49984
+                    Rh102m.mac                         0.000317                              135                          1349583
   AlphaN_TeLAB_AVin_AV_18O.mac                         0.000217                              876                          5994741
   AlphaN_TeLAB_AVin_LS_13C.mac                           0.0002                              961                          6061219
+                      U234.mac                         0.000951                               20                           599814
+        Po210_av_outerdust.mac                         0.035198                             4022                       4464436602
+                     Th230.mac                         0.000951                              131                          3928786
         Po210_av_innerdust.mac                         0.001268                             6910                        276314647
+                     Ra224.mac                         0.000634                               25                           499845
+        Bi210_av_outerdust.mac                         0.035198                             3652                       4053735075
+                      Co58.mac                         0.000634                                7                           139956
+                     Rh102.mac                         0.000634                               66                          1319592
+                    Pa234m.mac                         0.000634                             1937                         38728037
+                     Bi212.mac                         0.000317                               96                           959703
+              BiPo214-pure.mac                         0.000176                            14407                         79963690
+             Te130_0n2b_n7.mac                         0.000634                               50                           999691
+                     Rn222.mac                         0.000634                              185                          3698857
           K40_av_outerdust.mac                          0.00793                             2767                        691972688
+                     Pb210.mac                         0.013635                              495                        212846713
              Tl208_exwater.mac                         0.004439                             2112                        295655298
+                       K40.mac                         0.000634                                5                            99969
            BiPo212_hdropes.mac                           0.0301                              110                        104415696
+                     Sb124.mac                         0.000279                              142                          1249393
+             Te130_0n2b_n1.mac                         0.000317                              100                           999691
+                      Rb82.mac                         0.000229                               17                           122769
+                      U238.mac                         0.001268                               43                          1719468
         Tl208_av_innerdust.mac                         0.000206                               46                           298835
+                     Po212.mac                         0.000317                               62                           619808
              Bi214_exwater.mac                         0.012367                              987                        384935637
+                       C14.mac                         0.012367                              812                        316684638
+                     Bi210.mac                         0.001268                             3019                        120722709
       BiPo212_av_outerdust.mac                         0.000951                              422                         12656090
           K40_av_innerdust.mac                          0.00127                              256                         10252984
+                     Po214.mac                         0.000634                              197                          3938783
+                     Po216.mac                         0.000634                               24                           479851
         Tl210_av_innerdust.mac                          3.0e-06                               10                              946
             Bi214_hupropes.mac                         0.006976                              127                         27939382
+                      Co56.mac                         0.000153                               26                           125450
         Bi214_av_outerdust.mac                         0.000951                              518                         15535201
+                     Ac228.mac                         0.000317                              484                          4838505
+                     Pb214.mac                         0.000951                              137                          4108730
                 BiPo212_av.mac                          0.00951                              136                         40787400
+                     Th232.mac                         0.001268                               13                           519839
                     K40_av.mac                          0.00476                             9060                       1360008921
+                      Ga68.mac                         0.000317                               11                           109966
         Pb210_av_innerdust.mac                            0.016                             1478                        745763328
+             Te130_0n2b_n2.mac                         0.000317                               95                           949706
+                     Pb212.mac                         0.001903                               13                           780169
+                     Po218.mac                         0.000634                              182                          3638875
+             2223keV_gamma.mac                         0.000317                               92                           919715
+                      Sc44.mac                         0.000244                               19                           146200
                   Bi214_av.mac                          0.00076                             5121                        122736850
+                     Sb126.mac                         0.000225                              199                          1412024
+                     Rh106.mac                         0.000317                               12                           119962
+                     Po210.mac                         0.000951                             1589                         47655279
+        Pb210_av_outerdust.mac                            0.111                             3756                      13147862976
+                      Kr85.mac                         0.001903                               19                          1140247
         Tl208_av_outerdust.mac                         0.000317                             5647                         56452562
+              BiPo212-pure.mac                         0.000317                              811                          8107495
+                       K42.mac                         0.000317                               12                           119962
       BiPo212_av_innerdust.mac                         0.000317                               68                           679790
+                     Tl210.mac                          0.00019                               18                           107853
+                       Y88.mac                         0.000227                              217                          1553431
         Bi214_av_innerdust.mac                         0.000951                             1112                         33349698
+                      Rb84.mac                         0.000317                               11                           109966
  AlphaN_TeLAB_AVout_AV_18O.mac                         0.000317                              255                          2549212
+                     Ag110.mac                         0.000317                              109                          1089663
