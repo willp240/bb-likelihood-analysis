@@ -107,7 +107,7 @@ if __name__ == "__main__":
     parser.add_argument("run_duration", type=float, help="How long were the simulations run for? Historically this has been one year")
     args = parser.parse_args()
 
-    cuts_requiring_rescale = ["scintEdepCut"]
+    cuts_requiring_rescale = ["scintEdepCut", ""]
 
     mac_mapping = map_macros_to_dirs(args.mc_top_dir, glob(os.path.abspath(args.macro_files)))
 
@@ -115,17 +115,22 @@ if __name__ == "__main__":
     for k,v in mac_mapping.iteritems():
         if v is None:
             continue
-        
         file_count_mapping[k] = count_inside(v)
-        
 
     print "Assuming a simulation time of {0}yr ..\n\n".format(args.run_duration)
     row_format ="{0:>30}   {1:>30}   {2:>30}   {3:>30}"
     print row_format.format("Macro", "Macro rate", "File Count", "Estimated simulated event count")
+    warnings = []
     for mac, dir_name in mac_mapping.iteritems():
         if dir_name is None:
             continue
         if needs_rescale(mac, cuts_requiring_rescale):
             file_count = file_count_mapping[mac]
             macro_rate = grab_rate(mac)
+            if macro_rate is None:
+                warnings.append("Can't interpret a rate for {0}! skipping".format(os.path.basename(mac)))
+                continue
             print row_format.format(os.path.basename(mac), macro_rate, file_count, int(file_count * macro_rate * (365 * 24 * 3600 * args.run_duration)))
+
+
+    print "\n\n\n Warnings:\n\t" + "\n\t".join(warnings)
