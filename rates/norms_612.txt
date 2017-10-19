@@ -3,4 +3,15 @@ Assuming a simulation time of 1.0yr ..
 
                          Macro                       Macro rate                       File Count   Estimated simulated event count
              Tl208_hdropes.mac                         0.000634                            13150                        262918785
+          AlphaN_TeLAB_13C.mac                         0.000112                              623                          2200455
+                    Agm110.mac                         0.000163                              382                          1963620
+                      Co60.mac                         0.000145                              425                          1943406
+                Te130_0n2b.mac                         0.000204                              282                          1814203
                   Tl208_av.mac                         0.000232                             3923                         28702048
+                Te130_2n2b.mac                         0.000317                            14617                        146124862
+
+
+
+ Warnings:
+	Can't interpret a rate for B8_solar_nue.mac! skipping
+	Can't interpret a rate for B8_solar_numu.mac! skipping
