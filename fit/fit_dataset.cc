@@ -106,22 +106,32 @@ Fit(const std::string& mcmcConfigFile_,
     dists.push_back(BinnedED(*it, IO::LoadHistogram(distPath)));
   }
 
-  
-  // Load up the data set
-  ROOTNtuple dataToFit(dataPath_, "oxsx_saved");
-  
-  // Log the effects of the cuts
-  CutLog log(cutCol.GetCutNames());
-  
-  // and bin the data inside
-  BinnedED dataDist = DistBuilder::Build("data", pConfig, (DataSet*)&dataToFit, cutCol, log);
 
-  // 
-  std::ofstream ofs((outDir + "/data_cut_log.txt").c_str());
-  ofs << "Cut log for data set " << dataPath_ << std::endl;
-  ofs << log.AsString() << std::endl;
-  ofs.close();
+  // if its a root tree then load it up
+  BinnedED dataDist;
   
+  if(dataPath_.substr(dataPath_.find_last_of(".") + 1) == "h5"){
+      Histogram loaded = IO::LoadHistogram(dataPath_);
+      dataDist = BinnedED("data", loaded);
+      dataDist.SetObservables(pConfig.GetBranchNames());
+  }
+  else{
+      // Load up the data set
+      ROOTNtuple dataToFit(dataPath_, "oxsx_saved");
+      
+      // Log the effects of the cuts
+      CutLog log(cutCol.GetCutNames());
+      
+      // and bin the data inside
+      dataDist = DistBuilder::Build("data", pConfig, (DataSet*)&dataToFit, cutCol, log);
+      
+  // 
+      std::ofstream ofs((outDir + "/data_cut_log.txt").c_str());
+      ofs << "Cut log for data set " << dataPath_ << std::endl;
+      ofs << log.AsString() << std::endl;
+      ofs.close();
+  }
+
   // now build the likelihood
   BinnedNLLH lh;
   lh.AddPdfs(dists);
@@ -203,6 +213,8 @@ Fit(const std::string& mcmcConfigFile_,
 
   // and also save the data
   IO::SaveHistogram(dataDist.GetHistogram(), scaledDistDir + "/" + "data.root");
+  // avoid binning again if not nessecary
+  IO::SaveHistogram(dataDist.GetHistogram(),  outDir + "/" + "data.h5");
 
   // and a copy of all of the configurations used
   std::ifstream if_a(mcmcConfigFile_.c_str(), std::ios_base::binary);
