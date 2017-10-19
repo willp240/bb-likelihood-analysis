@@ -15,7 +15,9 @@
 #include <Rand.h>
 #include <AxisCollection.h>
 #include <IO.h>
-#include <MetropolisHastings.h>
+#include <MCMC.h>
+#include <HamiltonianSampler.h>
+#include <MetropolisSampler.h>
 
 using namespace bbfit;
 
@@ -25,6 +27,8 @@ Fit(const std::string& mcmcConfigFile_,
     const std::string& cutConfigFile_, 
     const std::string& dataPath_,
     const std::string& outDirOverride_){
+    Rand::SetSeed(0);
+
 
     // Load up the configuration data
     FitConfig mcConfig;
@@ -56,17 +60,14 @@ Fit(const std::string& mcmcConfigFile_,
         mkdir(outDir.c_str(), 0700);
     }
     
-    st = {0};
     if (stat(projDir1D.c_str(), &st) == -1) {
         mkdir(projDir1D.c_str(), 0700);
     }
     
-    st = {0};
     if (stat(projDir2D.c_str(), &st) == -1) {
         mkdir(projDir2D.c_str(), 0700);
     }
     
-    st = {0};
     if (stat(scaledDistDir.c_str(), &st) == -1) {
         mkdir(scaledDistDir.c_str(), 0700);
     }
@@ -138,15 +139,34 @@ Fit(const std::string& mcmcConfigFile_,
   lh.SetCuts(cutCol);
   lh.SetDataDist(dataDist);
 
+  ParameterDict constrMeans  = mcConfig.GetConstrMeans();
+  ParameterDict constrSigmas = mcConfig.GetConstrSigmas();
+  for(ParameterDict::iterator it = constrMeans.begin(); it != constrMeans.end();
+      ++it)
+      lh.SetConstraint(it->first, it->second, constrSigmas.at(it->first));
+
   // and now the optimiser
-  MetropolisHastings mh;
+  // Create something to do hamiltonian sampling
+  ParameterDict sigmas = mcConfig.GetSigmas();
+
+  HamiltonianSampler<BinnedNLLH> sampler(lh, mcConfig.GetEpsilon(), 
+                                         mcConfig.GetNSteps());
+  sampler.SetMinima(mcConfig.GetMinima());
+  sampler.SetMaxima(mcConfig.GetMaxima());
+  ParameterDict masses;
+
+  for(ParameterDict::iterator it = sigmas.begin(); it != sigmas.end(); ++it)
+      masses[it->first] = 1/sigmas[it->first]/1/sigmas[it->first];
+
+  sampler.SetMasses(masses);
+  
+  MCMC mh(sampler);
 
   mh.SetMaxIter(mcConfig.GetIterations());
   mh.SetBurnIn(mcConfig.GetBurnIn());
   mh.SetMinima(mcConfig.GetMinima());
   mh.SetMaxima(mcConfig.GetMaxima());
-  mh.SetSigmas(mcConfig.GetSigmas());
-
+  
   // we're going to minmise not maximise -log(lh) and the 
   // mc chain needs to know that the test stat is logged 
   // otherwise it will give us the distribution of the log(lh) not the lh
@@ -168,8 +188,7 @@ Fit(const std::string& mcmcConfigFile_,
   mh.SetHistogramAxes(lhAxes);
   
   // go
-  Rand::SetSeed(0);
-  FitResult res = mh.Optimise(&lh);
+  const FitResult& res = mh.Optimise(&lh);
 
   // Now save the results
   res.SaveAs(outDir + "/fit_result.txt");
@@ -177,9 +196,12 @@ Fit(const std::string& mcmcConfigFile_,
   std::cout << "Saved fit result to " << outDir + "/fit_result.txt"
             << std::endl;
 
+  MCMCSamples samples = mh.GetSamples();
+
   // save the histograms
-  HistMap proj1D = res.Get1DProjections();
-  HistMap proj2D = res.Get2DProjections();
+  typedef std::map<std::string, Histogram> HistMap;
+  const HistMap& proj1D = samples.Get1DProjections();
+  const HistMap& proj2D = samples.Get2DProjections();
 
   std::cout << "Saving LH projections to \n\t" 
             << projDir1D
@@ -187,12 +209,12 @@ Fit(const std::string& mcmcConfigFile_,
             << projDir2D
             << std::endl;
 
-  for(HistMap::iterator it = proj1D.begin(); it != proj1D.end();
+  for(HistMap::const_iterator it = proj1D.begin(); it != proj1D.end();
       ++it){
     IO::SaveHistogram(it->second, projDir1D + "/" + it->first + ".root");
   }
 
-  for(HistMap::iterator it = proj2D.begin(); it != proj2D.end();
+  for(HistMap::const_iterator it = proj2D.begin(); it != proj2D.end();
       ++it){
     IO::SaveHistogram(it->second, projDir2D + "/" + it->first + ".root");
   }
@@ -215,6 +237,13 @@ Fit(const std::string& mcmcConfigFile_,
   IO::SaveHistogram(dataDist.GetHistogram(), scaledDistDir + "/" + "data.root");
   // avoid binning again if not nessecary
   IO::SaveHistogram(dataDist.GetHistogram(),  outDir + "/" + "data.h5");
+
+  // save autocorrelations
+  std::ofstream cofs((outDir + "/auto_correlations.txt").c_str());
+  std::vector<double> autocors = samples.GetAutoCorrelations();
+  for(size_t i = 0; i < autocors.size(); i++)
+      cofs << i << "\t" << autocors.at(i) << "\n";
+  cofs.close();
 
   // and a copy of all of the configurations used
   std::ifstream if_a(mcmcConfigFile_.c_str(), std::ios_base::binary);

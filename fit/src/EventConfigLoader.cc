@@ -24,17 +24,24 @@ EventConfigLoader::LoadOne(const std::string& name_) const{
 
 
   double rate;
-  int    nGenerated;
+  unsigned long  nGenerated;
   bool   randomSplit;
   std::string texLabel;
   std::string splitMethod;
   std::vector<std::string> ntupFiles;
 
   ConfigLoader::Load(name_, "rate", rate);
-  ConfigLoader::Load(name_, "n_generated", nGenerated);
-  ConfigLoader::Load(name_, "texLabel", texLabel);
+  ConfigLoader::Load(name_, "tex_label", texLabel);
   ConfigLoader::Load(name_, "ntup_files", ntupFiles);
   ConfigLoader::Load(name_, "split_method", splitMethod);
+
+  try{
+      ConfigLoader::Load(name_, "n_generated", nGenerated);
+  }
+  catch(const ConfigFieldMissing&){
+      nGenerated = 0;
+  }
+
 
   if(splitMethod == "random")
     randomSplit = true;

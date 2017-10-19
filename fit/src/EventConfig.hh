@@ -11,8 +11,8 @@ public:
   double GetRate() const;
   void   SetRate(double);
 
-  int GetNGenerated() const;
-  void SetNGenerated(int);
+  unsigned long GetNGenerated() const;
+  void SetNGenerated(unsigned long);
 
   std::string GetName() const;
   void SetName(const std::string&);
@@ -37,7 +37,7 @@ public:
 
 private:
   double fRate;
-  int    fNgenerated;
+  unsigned long  fNgenerated;
   std::vector<std::string> fNtupFiles;
   std::string fNtupBaseDir; // the originals
   std::string fPrunedPath;   // the pruned ouput
