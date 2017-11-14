@@ -6,6 +6,8 @@ class Grouper:
         self.hists = {}
 
     def add(self, hist, group):
+        if hist.Integral() == 0 or hist.Integral() != hist.Integral(): 
+            return
         try:
             self.hists[group].Add(hist)
         except KeyError:
@@ -43,6 +45,70 @@ def stack(order, hists, labels, colors):
             pass
     return stack, leg
 
+def stack_slice(order, hists, labels, colors, bin):
+    stack = ROOT.THStack("fit_{0}".format(bin), "")
+    leg   = ROOT.TLegend(0.75, 0.65, 0.95, 0.95)
+    projs = {}
+    for name in order:
+        try:  
+            proj = hists[name].ProjectionX("{0}_{1}slice_px".format(name, bin), bin, bin)
+            proj.SetDirectory(0)
+            projs[name] = proj
+            stack.Add(proj)
+        except KeyError as e:
+            print "Warning: found no hists for group " + name
+            continue
+        t_col = ROOT.TColor.GetColor("#{0}".format(colors[name]))
+        projs[name].SetLineColor(t_col)
+        projs[name].SetFillColor(t_col)
+
+    for name in reversed(order):
+        try:
+            leg.AddEntry(projs[name], labels[name], "FL")            
+        except KeyError as e:
+            pass
+    return stack, leg, projs
+
+
+def savestack(data, stack_, leg, name, x_title, y_title, title, result_dir):
+    # draw it
+    can =  ROOT.TCanvas()
+    stack_.Draw()
+    stack_.GetXaxis().SetTitle(x_title)
+    stack_.GetYaxis().SetTitle(y_title)
+    stack_.Draw()
+    can.Modified()
+    data.Draw("same PE")
+    leg.AddEntry(data, "Data", "PE")
+    leg.Draw("same")
+    can.SaveAs(os.path.join(result_dir, name + "stacked_fit.root"))
+    
+    
+    # now work out a chi square
+    s_hist = stack_.GetStack().Last()
+    chi_square = 0
+    for i in xrange(1, s_hist.GetNbinsX() + 1):
+        try:
+            chi_square += (s_hist.GetBinContent(i) -  data.GetBinContent(i)) ** 2 / s_hist.GetBinContent(i)
+        except ZeroDivisionError as e:
+            print "zero probability bin! #", i, "  @ ", s_hist.GetXaxis().GetBinCenter(i)
+    
+            
+    print "\n\nchisq/bin = ", chi_square, " / ", s_hist.GetNbinsX()
+    print "p-value = ", ROOT.TMath.Prob(chi_square, s_hist.GetNbinsX())
+
+
+    print "Integrals:\n"
+    print "\t Fake Data : ", data.Integral()
+    print "\t Stack : ", s_hist.Integral()
+    print "\t Sigma  : ", (data.Integral() - s_hist.Integral())/math.sqrt(s_hist.Integral())
+
+    # now calculate the diff
+    s_hist.Sumw2()
+    data.Add(s_hist, -1)
+    data.SaveAs(os.path.join(result_dir, name + "fit_diff.root"))
+
+
 if __name__ == "__main__":
     import argparse
     import glob
@@ -52,7 +118,7 @@ if __name__ == "__main__":
     parser.add_argument("plot_config", type = str)
     parser.add_argument("event_config", type = str)
     parser.add_argument("result_dir", type=str)
-    
+    parser.add_argument("--proj_titles_file", type=str)
     args = parser.parse_args()
     data  = grab_hist(os.path.join(args.result_dir, "scaled_dists", "data.root"))
     data.Sumw2()
@@ -102,41 +168,26 @@ if __name__ == "__main__":
     order  = parser.get("summary", "plot_order").split(",")
     x_title  = parser.get("titles", "x_axis")
     y_title  = parser.get("titles", "y_axis")
-    
-    stack_, leg = stack(order, grouper.hists, tex_labels, colors)
 
-    # draw it
-    can =  ROOT.TCanvas()
-    stack_.Draw()
-    stack_.GetXaxis().SetTitle(x_title)
-    stack_.GetYaxis().SetTitle(y_title)
-    stack_.Draw()
-    data.Draw("same PE")
-    leg.AddEntry(data, "Data", "PE")
-    leg.Draw("same")
-    can.SaveAs(os.path.join(args.result_dir, "stacked_fit.root"))
-   
+    if all(type(x).__name__ == "TH1D" for x in scaled_dists.values()):
+        stack_, leg = stack(order, grouper.hists, tex_labels, colors)
+        savestack(data, stack_, leg, "", x_title, y_title, "", args.result_dir)
 
-    # now work out a chi square
-    s_hist = stack_.GetStack().Last()
-    chi_square = 0
-    for i in xrange(1, s_hist.GetNbinsX() + 1):
-        try:
-            chi_square += (s_hist.GetBinContent(i) -  data.GetBinContent(i)) ** 2 / s_hist.GetBinContent(i)
-        except ZeroDivisionError as e:
-            print "zero probability bin! #", i, "  @ ", s_hist.GetXaxis().GetBinCenter(i)
-    
-            
-    print "\n\nchisq/bin = ", chi_square, " / ", s_hist.GetNbinsX()
-    print "p-value = ", ROOT.TMath.Prob(chi_square, s_hist.GetNbinsX())
+    elif all(type(x).__name__ == "TH2D" for x in scaled_dists.values()):
+        n_y_bins = grouper.hists.values()[0].GetNbinsY()
+        if args.proj_titles_file is not None:
+            with open(args.proj_titles_file) as f:
+                proj_titles = f.read().splitlines()
 
+            if len(proj_titles) != n_y_bins:
+                raise ValueError("If you specify the projection titles there should be one per y bin ({0}), you gave {1}".format(n_y_bins, len(proj_titles)))
+        else:
+            proj_titles = ["projection_{0}".format(iBin) for iBin in xrange(n_y_bins)]
 
-    print "Integrals:\n"
-    print "\t Fake Data : ", data.Integral()
-    print "\t Stack : ", s_hist.Integral()
-    print "\t Sigma  : ", (data.Integral() - s_hist.Integral())/math.sqrt(s_hist.Integral())
-    # now calculate the diff
-    s_hist.Sumw2()
-    data.Add(s_hist, -1)
-    data.SaveAs(os.path.join(args.result_dir, "fit_diff.root"))
-
+        # want to stack and save each slice independently
+        for iBin in xrange(1, n_y_bins):
+            stack_, leg, projs = stack_slice(order, grouper.hists, tex_labels, 
+                                             colors, iBin)            
+            savestack(data.ProjectionX("_px", iBin, iBin, "e"), stack_, leg, "proj{0}_".format(iBin), x_title, y_title, proj_titles[iBin], args.result_dir)
+    else:
+        print "Can't make sense of the histograms.. Only TH1D and TH2D are supported. not doing anything"
