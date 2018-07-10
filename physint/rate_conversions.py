@@ -1,12 +1,11 @@
 import math
 
 ELECTRON_MASS = 511e3 # electron volts
-TE_130_MASS   = 129.906 * 1.67e-27 # ~130u
-TE_130_ABUNDANCE  = 0.345
+TE_130_MASS   = 127.60 * 1.67e-27 # ~130u
+TE_130_ABUNDANCE  = 0.3408
 
 SNOT_MASS = 782e3
 SNOT_LOADING = 0.005
-
 
 # bb with light neutrino exchange
 def mass_to_hl(bb_mass, phase_space_fac, nuc_mat_el):
