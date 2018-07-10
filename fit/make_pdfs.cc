@@ -114,13 +114,15 @@ int main(int argc, char *argv[]){
     // save a copy of the cut log
     log.SaveAs(it->first, pdfDir + "/" + it->first + ".txt");
 
-    // save as hdf5 obj and root 
-    // 1D, just save them
-    if(dist.GetNDims() == 1)
-      DistTools::ToTH1D(dist).SaveAs((pdfDir + "/" + it->first + ".root").c_str());
+    // save as h5
+    IO::SaveHistogram(dist.GetHistogram(), pdfDir + "/" + it->first + ".h5");
+
+    // save as a root histogram if possible
+    if(dist.GetNDims() <= 2)
+        IO::SaveHistogram(dist.GetHistogram(), pdfDir + "/" + it->first + ".root");
 
     // HigherD save the projections
-    else{
+    if(dist.GetNDims() > 1){
       std::vector<BinnedED> projs = HistTools::GetVisualisableProjections(dist);
 
       // save them as apropriate
@@ -133,8 +135,6 @@ int main(int argc, char *argv[]){
               DistTools::ToTH2D(proj).SaveAs((projDir + "/" + proj.GetName() + ".root").c_str());
       }
     }
-
-    IO::SaveHistogram(dist.GetHistogram(), pdfDir + "/" + it->first + ".h5");
   }
 
   return 0;
