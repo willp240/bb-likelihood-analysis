@@ -28,6 +28,7 @@ def grab_hist(filename):
 def stack(order, hists, labels, colors):
     stack = ROOT.THStack("fit", "")
     leg   = ROOT.TLegend(0.75, 0.65, 0.95, 0.95)
+
     for name in order:
         try:
             stack.Add(hists[name])
@@ -76,10 +77,12 @@ def savestack(data, stack_, leg, name, x_title, y_title, title, result_dir):
     stack_.Draw()
     stack_.GetXaxis().SetTitle(x_title)
     stack_.GetYaxis().SetTitle(y_title)
+    stack_.SetTitle(title)
     stack_.Draw()
     can.Modified()
+
     data.Draw("same PE")
-    leg.AddEntry(data, "Data", "PE")
+    leg.AddEntry(data, "Fake Data", "PE")
     leg.Draw("same")
     can.SaveAs(os.path.join(result_dir, name + "stacked_fit.root"))
     
@@ -141,6 +144,7 @@ if __name__ == "__main__":
     # filter them into their groups
     grouper = Grouper()
     for name in names:
+        p = scaled_dists[name].ProjectionY("blah", 1, 1)
         grouper.add(scaled_dists[name], groups[name])
 
     # read the plot config
@@ -182,12 +186,12 @@ if __name__ == "__main__":
             if len(proj_titles) != n_y_bins:
                 raise ValueError("If you specify the projection titles there should be one per y bin ({0}), you gave {1}".format(n_y_bins, len(proj_titles)))
         else:
-            proj_titles = ["projection_{0}".format(iBin) for iBin in xrange(n_y_bins)]
+            proj_titles = ["projection_{0}".format(iBin) for iBin in xrange(n_y_bins + 1)]
 
         # want to stack and save each slice independently
-        for iBin in xrange(1, n_y_bins):
+        for iBin in xrange(1, n_y_bins + 1):
             stack_, leg, projs = stack_slice(order, grouper.hists, tex_labels, 
                                              colors, iBin)            
-            savestack(data.ProjectionX("_px", iBin, iBin, "e"), stack_, leg, "proj{0}_".format(iBin), x_title, y_title, proj_titles[iBin], args.result_dir)
+            savestack(data.ProjectionX("_px", iBin, iBin, "e"), stack_, leg, "proj{0}_".format(iBin), x_title, y_title, proj_titles[iBin - 1], args.result_dir)
     else:
         print "Can't make sense of the histograms.. Only TH1D and TH2D are supported. not doing anything"
