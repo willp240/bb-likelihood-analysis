@@ -1,3 +1,4 @@
+// compile me using source oxsx/bin/compile.sh to_h5.cpp
 #include <IO.h>
 #include <DistTools.h>
 #include <Histogram.h>
