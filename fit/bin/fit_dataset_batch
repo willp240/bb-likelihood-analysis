@@ -20,8 +20,8 @@ def write_shell_script(env, shell_script, args):
     '''
     with open(shell_script, "w") as f:
         f.write("source {0}\n".format(os.path.abspath(env)))
-        f.write("fit_dataset {0}\n".format(*args))
-
+        f.write("cd /home/dunger/thesis_bb/fit/bin/ \n")
+        f.write("./fit_dataset {0}\n".format(" ".join(args)))
 
 if __name__ == "__main__":
     import argparse
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("fit_config_file", type=str)
     parser.add_argument("dist_dir", type=str)
-    parser.add_argument("cut_config_file" type=str)
+    parser.add_argument("cut_config_file", type=str)
     parser.add_argument("data_to_fit", type=str)
     parser.add_argument("output_directory", type=str)
 
@@ -38,13 +38,6 @@ if __name__ == "__main__":
     parser.add_argument("-submit_command", type=str, help="used to submit the job", default="qsub -l cput=01:59:59 ")
     args = parser.parse_args()
 
-    # create a directory to put all the submission junk in
-    sub_dir = "{0}_fit_sub".format(os.path.splitext(args.fit_config_file)[0])
-    try:
-        os.mkdir(sub_dir)
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise
 
     # and another one for the output
     try:
@@ -53,17 +46,25 @@ if __name__ == "__main__":
         if e.errno != errno.EEXIST:
             raise
 
+    print "made dir ", args.output_directory
+    sub_dir = os.path.join(args.output_directory, "fit_sub")
+    try:
+        os.mkdir(sub_dir)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
+
     # now write a shell script for each one
     pass_on_args = [args.fit_config_file, args.dist_dir, args.cut_config_file, args.data_to_fit]
     sh_scripts = []
     for i in xrange(args.reps):
-        sh_path = os.path.join(sub_dir, "{0}_part_{1}.sh".format(args.fit_config_file, i))
+        sh_path = os.path.join(sub_dir, "part_{0}.sh".format(i))
         
-        output_dir_part = os.path.abspath(os.path.join(args.output_directory, "part_{i}"))
-        write_shell_script(args.env, sh_path, *pass_on_args, out_dir_path)
+        output_dir_path = os.path.abspath(os.path.join(args.output_directory, "part_{0}".format(i)))
+        write_shell_script(args.env, sh_path, pass_on_args +  [output_dir_path])
         sh_scripts.append(sh_path)
 
     # now submit the jobs
-    for sh in shell_scripts:
+    for sh in sh_scripts:
         submit_job(sh, args.submit_command, sub_dir)
         
