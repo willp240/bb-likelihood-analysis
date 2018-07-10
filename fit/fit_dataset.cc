@@ -110,7 +110,7 @@ Fit(const std::string& mcmcConfigFile_,
 
   // if its a root tree then load it up
   BinnedED dataDist;
-  
+ 
   if(dataPath_.substr(dataPath_.find_last_of(".") + 1) == "h5"){
       Histogram loaded = IO::LoadHistogram(dataPath_);
       dataDist = BinnedED("data", loaded);
@@ -189,6 +189,7 @@ Fit(const std::string& mcmcConfigFile_,
   
   // go
   const FitResult& res = mh.Optimise(&lh);
+  lh.SetParameters(res.GetBestFit());
 
   // Now save the results
   res.SaveAs(outDir + "/fit_result.txt");
@@ -224,17 +225,20 @@ Fit(const std::string& mcmcConfigFile_,
   std::cout << "Saving scaled histograms and data to \n\t"
             << scaledDistDir << std::endl;
 
-  ParameterDict bestFit = res.GetBestFit();
-  for(size_t i = 0; i < dists.size(); i++){
-    std::string name = dists.at(i).GetName();
-    dists[i].Normalise();
-    dists[i].Scale(bestFit[name]);
-    IO::SaveHistogram(dists[i].GetHistogram(), 
-		      scaledDistDir + "/" + name + ".root");
+  if(dataDist.GetHistogram().GetNDims() < 3){
+      ParameterDict bestFit = res.GetBestFit();
+      for(size_t i = 0; i < dists.size(); i++){
+          std::string name = dists.at(i).GetName();
+          dists[i].Normalise();
+          dists[i].Scale(bestFit[name]);
+          IO::SaveHistogram(dists[i].GetHistogram(), 
+                            scaledDistDir + "/" + name + ".root");
+      }
   }
 
   // and also save the data
-  IO::SaveHistogram(dataDist.GetHistogram(), scaledDistDir + "/" + "data.root");
+  if(dataDist.GetHistogram().GetNDims() < 3)
+      IO::SaveHistogram(dataDist.GetHistogram(), scaledDistDir + "/" + "data.root");
   // avoid binning again if not nessecary
   IO::SaveHistogram(dataDist.GetHistogram(),  outDir + "/" + "data.h5");
 
