@@ -9,6 +9,8 @@
 #include <iostream>
 using namespace bbfit;
 
+void CreateFolder(const std::string& dirname);
+
 void 
 SplitInTwo(const std::string& filename, const std::string& outdir1, const std::string& outdir2, double frac){
     TFile f(filename.c_str());
@@ -29,11 +31,10 @@ SplitInTwo(const std::string& filename, const std::string& outdir1, const std::s
     c->SetBranchAddress("bipoCumul", &bipoCumul);
     c->SetBranchAddress("biPoLikelihood214", &bipolh);
     c->SetBranchAddress("itr", &itr);
-
-    // struct stat st = {0};
-    // if (stat(outdir1.c_str(), &st) == 0) {
-    //     return;
-    // }
+    
+    CreateFolder(outdir1);
+    CreateFolder(outdir2);
+    
     std::cout << outdir1 << std::endl;
     TFile output1(outdir1.c_str(), "RECREATE");
     TNtuple* newTree1 = new TNtuple("pruned", "", "energy:fitValid:reff:qmcdep:bipoCumul:biPoLikelihood214:itr");

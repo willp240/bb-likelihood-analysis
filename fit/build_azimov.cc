@@ -23,7 +23,8 @@ void
 BuildAzimov(const std::string& evConfigFile_, 
             const std::string& pdfConfigFile_, 
             const std::string& cutConfigFile_,
-            double liveTime_, const std::string& outName_, bool loadPDF){
+            double liveTime_, const std::string& outName_, bool loadPDF_, 
+            double nGenScale_){
 
     // load up the pdf configuration data
     DistConfigLoader dLoader(pdfConfigFile_);
@@ -57,7 +58,7 @@ BuildAzimov(const std::string& evConfigFile_,
     // create the empty dist
     BinnedED azimov;
     bool setAxes = false;
-    if(!loadPDF){
+    if(!loadPDF_){
         AxisCollection axes = DistBuilder::BuildAxes(pConfig);
         azimov = BinnedED("azimov", axes);
         setAxes = true;
@@ -69,9 +70,14 @@ BuildAzimov(const std::string& evConfigFile_,
         BinnedED dist;
         dist = DistBuilder::Build(it->first, pConfig, ds, cutCol, log);
         unsigned long nGen = ds->GetNEntries();
-        if(it->second.GetNGenerated())
+        if(it->second.GetNGenerated()){
             nGen = it->second.GetNGenerated();
-        nGen /= 2;
+            // perhaps you have already spilt the data in half
+            // so the number you want doesn't correpond to the number in the config file
+            // in that case nGenScale should equal 0.5
+            nGen /= nGenScale_;
+        }
+
         if(!it->second.GetRate())
             continue;
         std::cout << "Integral before scale = " << dist.Integral() << std::endl;
@@ -81,7 +87,7 @@ BuildAzimov(const std::string& evConfigFile_,
 
         std::cout << liveTime_ << "\t" << it->second.GetRate() << "\t" << nGen << std::endl;
         if(dist.Integral() == dist.Integral()){
-            if(!loadPDF)
+            if(!loadPDF_)
                 azimov.Add(dist);
             std::cout << "Added " << dist.Integral() << " of event type " << it->first << std::endl;
         }
@@ -95,7 +101,7 @@ BuildAzimov(const std::string& evConfigFile_,
         }
 
         
-        if(loadPDF){
+        if(loadPDF_){
             std::string distDir = pConfig.GetPDFDir();
             std::string distPath = distDir + "/" + it->first + ".h5";
             std::cout << "Loading histogram from "<< distPath << std::endl;
@@ -125,8 +131,8 @@ BuildAzimov(const std::string& evConfigFile_,
 
 
 int main(int argc, char* argv[]){
-    if(argc != 7){
-        std::cout << "Usage: make_azimov <event_config_file> <pdf_config_file> <cut_config_file> <live_time(yr)> <out_file(no ext)> <load_from_pdf(0 or 1)>"
+    if(argc != 7 && argc != 8){
+        std::cout << "Usage: make_azimov <event_config_file> <pdf_config_file> <cut_config_file> <live_time(yr)> <out_file(no ext)> <load_from_pdf(0 or 1)> <nGen scaling (optional)>"
                   << std::endl;
         return 1;
     }
@@ -138,7 +144,11 @@ int main(int argc, char* argv[]){
     bool  loadPDF;
     std::istringstream(argv[4]) >> liveTime;
     std::istringstream(argv[6]) >> loadPDF;
+    
+    double nGenScale = 1;
+    if(argc == 8)
+        std::istringstream(argv[7]) >> nGenScale;
 
-    BuildAzimov(evConfigFile, pdfConfigFile, cutConfigFile, liveTime, outName, loadPDF);
+    BuildAzimov(evConfigFile, pdfConfigFile, cutConfigFile, liveTime, outName, loadPDF, nGenScale);
     return 0;
 }
