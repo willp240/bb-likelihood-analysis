@@ -7,8 +7,6 @@ import errno
 # this is the general form of an entry line, match these to get efficiencies
 rex = ".*\s+(\d*\.?\d*)\s+(\d*\.?\d*e?-?\d+)\s+(\d*\.?\d*)\s+(\d*\.?\d*e?-?\d+)\s*"
 
-LIVETIME = 3
-
 def count_events(filenames, tree_name):
     ch = ROOT.TChain(tree_name)
     ch.Add(filenames)
@@ -53,7 +51,7 @@ def create_dir(dirname):
         if e.errno != errno.EEXIST:
             raise
 
-def read_file(event_config, pdf_dir, tree_name, data_fraction, outdir):
+def read_file(event_config, livetime, pdf_dir, tree_name, data_fraction, outdir):
     # make the output directories
     create_dir(outdir)
     create_dir(os.path.join(outdir, "scaled_dists"))
@@ -84,7 +82,7 @@ def read_file(event_config, pdf_dir, tree_name, data_fraction, outdir):
             print "skipping " + name
             continue
 
-        rate = expected_rate(event_config, name) * LIVETIME
+        rate = expected_rate(event_config, name) * livetime
         try:
             with open(os.path.join(pdf_dir, name + ".txt")) as f:
                 # the final matching line is the final efficiency
@@ -126,6 +124,7 @@ if __name__ == "__main__":
     import argparse 
     parser = argparse.ArgumentParser()
     parser.add_argument("event_config_file", type=str)
+    parser.add_argument("livetime", type=float)
     parser.add_argument("pdf_dir", type=str)
     parser.add_argument("result_dir", type=str)
     parser.add_argument("--data_fraction", type=float, default=1.)
@@ -133,6 +132,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     read_file(args.event_config_file,
+              args.livetime,
               args.pdf_dir,
               args.tree_name,
               args.data_fraction,
