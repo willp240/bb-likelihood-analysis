@@ -1,4 +1,6 @@
 // compile me using $(source oxsx/bin/compile.sh to_h5.cpp)
+// run with ./to_h5 <root-file> <new-h5-file>
+
 #include <IO.h>
 #include <DistTools.h>
 #include <Histogram.h>
