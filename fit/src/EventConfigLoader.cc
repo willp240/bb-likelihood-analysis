@@ -16,11 +16,13 @@ EventConfigLoader::LoadOne(const std::string& name_) const{
   ConfigLoader::Open(fPath);
   std::string baseDir;
   std::string prunedDir;
-  std::string splitDir;
+  std::string splitDirFake;
+  std::string splitDirPdf;
 
   ConfigLoader::Load("summary", "orig_base_dir", baseDir);
   ConfigLoader::Load("summary", "pruned_ntup_dir", prunedDir);
-  ConfigLoader::Load("summary", "split_ntup_dir", splitDir);
+  ConfigLoader::Load("summary", "split_ntup_dir_fake", splitDirFake);
+	ConfigLoader::Load("summary", "split_ntup_dir_pdf", splitDirPdf);
 
 
   double rate;
@@ -58,7 +60,8 @@ EventConfigLoader::LoadOne(const std::string& name_) const{
   retVal.SetName(name_);
   retVal.SetNtupBaseDir(baseDir);
   retVal.SetPrunedPath(prunedDir+ "/" + name_ + ".root");
-  retVal.SetMCSplitPath(splitDir + "/" + name_ + ".root");
+  retVal.SetSplitFakePath(splitDirFake + "/" + name_ + ".root");
+	retVal.SetSplitPdfPath(splitDirPdf + "/" + name_ + ".root");
   retVal.SetRandomSplit(randomSplit);
   return retVal;
 }

@@ -72,13 +72,23 @@ EventConfig::SetPrunedPath(const std::string& s_){
 }
 
 std::string
-EventConfig::GetMCSplitPath() const{
-  return fMCSplitPath;
+EventConfig::GetSplitFakePath() const{
+  return fSplitFakePath;
 }
 
 void
-EventConfig::SetMCSplitPath(const std::string& s_){
-  fMCSplitPath = s_;
+EventConfig::SetSplitFakePath(const std::string& s_){
+  fSplitFakePath = s_;
+}
+	
+std::string
+EventConfig::GetSplitPdfPath() const{
+  return fSplitPdfPath;
+}
+
+void
+EventConfig::SetSplitPdfPath(const std::string& s_){
+  fSplitPdfPath = s_;
 }
 
 bool

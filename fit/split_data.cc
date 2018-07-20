@@ -66,14 +66,19 @@ MakeDataSets(const std::string& configFile_, double liveTime_, int nDataSets_){
   dsGen.SetDataSets(dataSets);
   dsGen.SetExpectedRates(rates);
   dsGen.SetSequentialFlags(flags);
-  std::string outDir;
+  std::string outDirFake;
+  std::string outDirPdf;
   ConfigLoader::Open(configFile_);
-  ConfigLoader::Load("summary", "split_ntup_dir", outDir);
+  ConfigLoader::Load("summary", "split_ntup_dir_fake", outDirFake);
+  ConfigLoader::Load("summary", "split_ntup_dir_pdf", outDirPdf);
   ConfigLoader::Close();
 
   struct stat st = {0};
-  if (stat(outDir.c_str(), &st) == -1) {
-    mkdir(outDir.c_str(), 0700);
+  if (stat(outDirFake.c_str(), &st) == -1) {
+    mkdir(outDirFake.c_str(), 0700);
+  }
+	if (stat(outDirPdf.c_str(), &st) == -1) {
+    mkdir(outDirPdf.c_str(), 0700);
   }
 
   std::cout << "Generating " << nDataSets_ << " data sets with livetime " << liveTime_
@@ -83,7 +88,7 @@ MakeDataSets(const std::string& configFile_, double liveTime_, int nDataSets_){
   std::vector<int> content;
   for(int iSet = 0; iSet < nDataSets_; iSet++){
     std::cout << "DataSet #" << iSet << std::endl;
-    std::string outPath = Formatter() << outDir << "/fake_data_lt_" << liveTime_ << "__" << iSet;
+    std::string outPath = Formatter() << outDirFake << "/fake_data_lt_" << liveTime_ << "__" << iSet;
 
     OXSXDataSet ds = dsGen.PoissonFluctuatedDataSet(&content);
     std::ofstream fs;
@@ -110,18 +115,18 @@ MakeDataSets(const std::string& configFile_, double liveTime_, int nDataSets_){
     content.push_back(countsTaken);
     
     std::cout << "\t.. and saving" << std::endl;
-    IO::SaveDataSet(*remainder, Formatter() << outDir << "/" << names.at(iSet) << ".root");
+    IO::SaveDataSet(*remainder, Formatter() << outDirPdf << "/" << names.at(iSet) << ".root");
     delete remainder;
   }
 
   std::ofstream fs;
-  fs.open((outDir + "/mc_remainders.txt").c_str());
+  fs.open((outDirPdf + "/mc_remainders.txt").c_str());
   for(size_t i = 0; i < names.size(); i++)
     fs << names.at(i) << "\t" << content.at(i) << "\n";
   fs.close();  
   
-  std::cout << "\n\n Left over events written to  " << outDir
-	    << "\t with logfile " << outDir + "mc_remainders.txt" << std::endl;    
+  std::cout << "\n\n Left over events written to  " << outDirPdf
+	    << "\t with logfile " << outDirPdf + "mc_remainders.txt" << std::endl;    
 }
 
 int main(int argc, char *argv[]){

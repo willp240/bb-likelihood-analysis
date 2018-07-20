@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <EventConfigLoader.hh>
 #include <EventConfig.hh>
+#include <ConfigLoader.hh>
 #include <iostream>
 using namespace bbfit;
 
@@ -31,9 +32,7 @@ SplitInTwo(const std::string& filename, const std::string& outdir1, const std::s
     c->SetBranchAddress("bipoCumul", &bipoCumul);
     c->SetBranchAddress("biPoLikelihood214", &bipolh);
     c->SetBranchAddress("itr", &itr);
-    
-    CreateFolder(outdir1);
-    CreateFolder(outdir2);
+
     
     std::cout << outdir1 << std::endl;
     TFile output1(outdir1.c_str(), "RECREATE");
@@ -71,27 +70,30 @@ void CreateFolder(const std::string& dirname){
 }
 
 int main(int argc, char* argv[]){
-    if(argc != 5){
-        std::cout << "Usage: ./split_half <event_config> <split_dir1> <split_dir2> frac" << std::endl;
+    if(argc != 3){
+        std::cout << "Usage: ./split_half <event_config> frac" << std::endl;
     }
     std::string eventC(argv[1]);
-    std::string splitDir1(argv[2]);
-    std::string splitDir2(argv[3]);
-
-    CreateFolder(splitDir1);
-    CreateFolder(splitDir2);
-
     double frac;
-    std::istringstream(argv[4]) >> frac;
+    std::istringstream(argv[2]) >> frac;
     
-    EventConfigLoader loader(eventC);
-    
+		std::string outDir1;
+		std::string outDir2;
+		ConfigLoader::Open(eventC);
+		ConfigLoader::Load("summary", "split_ntup_dir_fake", outDir1);
+		ConfigLoader::Load("summary", "split_ntup_dir_pdf", outDir2);
+		ConfigLoader::Close();
+		
+		CreateFolder(outDir1);
+		CreateFolder(outDir2);
+
+		EventConfigLoader loader(eventC);
     typedef std::map<std::string, EventConfig>  EvMap;
     EvMap active = loader.LoadActive();
     for(EvMap::iterator it = active.begin(); it != active.end(); ++it){
         std::cout << it->first << std::endl;
-        std::string output1 = splitDir1 + "/" + it->first + ".root";
-        std::string output2 = splitDir2 + "/" + it->first + ".root";
+        std::string output1 = outDir1 + "/" + it->first + ".root";
+        std::string output2 = outDir2 + "/" + it->first + ".root";
         SplitInTwo(it->second.GetPrunedPath(), output1, output2, frac);
     }
     

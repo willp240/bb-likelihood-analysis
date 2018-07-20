@@ -29,8 +29,11 @@ public:
   std::string GetPrunedPath() const;
   void SetPrunedPath(const std::string&);
 
-  std::string GetMCSplitPath() const;
-  void SetMCSplitPath(const std::string&);
+  std::string GetSplitFakePath() const;
+  void SetSplitFakePath(const std::string&);
+
+	std::string GetSplitPdfPath() const;
+  void SetSplitPdfPath(const std::string&);
 
   bool GetRandomSplit() const;
   void SetRandomSplit(bool);
@@ -41,7 +44,8 @@ private:
   std::vector<std::string> fNtupFiles;
   std::string fNtupBaseDir; // the originals
   std::string fPrunedPath;   // the pruned ouput
-  std::string fMCSplitPath;   // after the fake data split
+  std::string fSplitFakePath;   // after the fake data split
+	std::string fSplitPdfPath;   // after the fake data split
   std::string fTexLabel;
   std::string fName;
   bool fRandomSplit;
