@@ -38,7 +38,7 @@ Clean(const std::string& infiles_, const std::string& outfile_, double eMin_, do
             flag1 = true;
         }
         else{
-            flag1 = (diff < dt && energy > 1 && lastEnergy > 1);
+            flag1 = (diff < dt && energy > eMin_ && lastEnergy > eMin_);
             if(!flag1 && !flag2)
                 std::cout << "passes" << std::endl;
             else
@@ -54,7 +54,6 @@ Clean(const std::string& infiles_, const std::string& outfile_, double eMin_, do
 }
 
 
-int main(){
-    
+int main(){    
     return 0;
 }
