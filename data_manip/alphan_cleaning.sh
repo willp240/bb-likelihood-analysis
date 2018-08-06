@@ -1,6 +1,11 @@
 # change this to whatever your rat environment is
 source ~/gitrat.sh
 
+# compile both of the scripts
+g++ remove_notrigs.cpp $(root-config --cflags --libs) -o remove_notrigs
+g++ clean_alphan.cpp $(root-config --cflags --libs) -o clean_alphan
+
+# configuration
 TESTING=0
 EMIN=1
 DELTA_T=1000000
