@@ -24,6 +24,7 @@ def separate_out_files(dirname, dry_run):
     for x in glob.glob(os.path.join(dirname, "*.root")):
         etype = read_event_type(x)
 
+        etype = etype.split("/")[1]
         subdir = os.path.join(dirname, etype)
         if not os.path.isdir(subdir):
             os.mkdir(subdir)
