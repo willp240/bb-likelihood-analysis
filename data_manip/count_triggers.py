@@ -7,7 +7,10 @@ def count_ev_indices(t_name, *filenames):
     
     triggers = [0] * 10
     for x in ch:
-        triggers[x.evIndex + 1] += 1
+        if (x.evIndex) < 9:
+            triggers[x.evIndex + 1] += 1
+        else:
+            triggers[9] += 1
     return triggers, ch.GetEntries()
     
 if __name__ == "__main__":
