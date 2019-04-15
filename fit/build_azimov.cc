@@ -66,7 +66,7 @@ BuildAzimov(const std::string& evConfigFile_,
 
     // now build each of the PDFs, scale them to the correct size and add it to the azimov
     for(EvMap::iterator it = toGet.begin(); it != toGet.end(); ++it){
-        DataSet* ds = new ROOTNtuple(it->second.GetPrunedPath(), "pruned");
+        DataSet* ds = new ROOTNtuple(it->second.GetSplitFakePath(), "pruned");
         BinnedED dist;
         dist = DistBuilder::Build(it->first, pConfig, ds, cutCol, log);
         unsigned long nGen = ds->GetNEntries();
@@ -75,7 +75,7 @@ BuildAzimov(const std::string& evConfigFile_,
             // perhaps you have already spilt the data in half
             // so the number you want doesn't correpond to the number in the config file
             // in that case nGenScale should equal 0.5
-            nGen /= nGenScale_;
+            nGen *= nGenScale_;
         }
 
         if(!it->second.GetRate())

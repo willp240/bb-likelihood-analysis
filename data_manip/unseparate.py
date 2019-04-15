@@ -1,5 +1,6 @@
-''' Take a folder full of files and separate them out into directories based
-on the class of event
+''' Take a folder full of files separated into directories based
+on the class of event and put them all into teh same directory. 
+Reverts separate.py
 '''
 import os
 import glob
@@ -21,18 +22,23 @@ def separate_out_files(dirname, dry_run):
     '''
     '''
     dirname = os.path.abspath(dirname)
-    for x in glob.glob(os.path.join(dirname, "*.root")):
+    for x in glob.glob(os.path.join(dirname, "*/*.root")):
         etype = read_event_type(x)
 
+        print dirname
+        print etype
         etype = etype.split("/")[1]
         subdir = os.path.join(dirname, etype)
-        if not os.path.isdir(subdir):
-            os.mkdir(subdir)
-        
-        print "{2}moving {0} to {1}".format(x, subdir, "(not) " if dry_run is True else "")
-        if dry_run is False:
-            shutil.move(x, subdir)
+        print dirname
+        print subdir
 
+        
+        print "{2}moving {0} to {1}".format(x, dirname, "(not) " if dry_run is True else "")
+        if dry_run is False:
+            shutil.move(x, dirname)
+            if len(os.listdir(subdir)) == 0:
+                os.rmdir(subdir)
+            
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()

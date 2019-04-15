@@ -95,7 +95,7 @@ int main(int argc, char *argv[]){
     // find the dataset
     DataSet* dataSet;
     try{
-        dataSet = new ROOTNtuple(it->second.GetMCSplitPath(), "oxsx_saved");
+        dataSet = new ROOTNtuple(it->second.GetSplitPdfPath(), "pruned");
     }
     catch(const IOError& e_){
         std::cout << "Warning: skipping " << it-> first << " couldn't open data set:\n\t" << e_.what() << std::endl;

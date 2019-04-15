@@ -4,7 +4,7 @@ G4_FLAGS=`geant4-config --cflags --libs`
 
 GSL_FLAGS=-lgsl
 
-OXSX_ROOT ?=
+OXSX_ROOT = /home/kroupova/oxsx
 OXSX_INC=$(OXSX_ROOT)/include
 OXSX_LIB_DIR=$(OXSX_ROOT)/build 
 OXSX_LIB_NAME=oxsx
@@ -22,15 +22,12 @@ LIB_NAME=bbfit
 
 LIB=$(LIB_DIR)/lib$(LIB_NAME).a
 
-all: bin/make_pdfs bin/make_trees bin/split_data bin/fit_dataset bin/up_count_lim bin/build_azimov bin/split_half bin/mesh_pdfs
+all: bin/make_pdfs bin/make_trees bin/split_data bin/fit_dataset bin/up_count_lim bin/build_azimov bin/split_half
 
 bin/fit_dataset: fit_dataset.cc $(LIB)
 	mkdir -p bin
 	$(CXX)  fit_dataset.cc -I$(INC_DIR) -I$(OXSX_INC) -w -L$(LIB_DIR) -L$(OXSX_LIB_DIR) -l$(LIB_NAME) -l$(OXSX_LIB_NAME)  $(ROOT_FLAGS) $(G4_FLAGS) $(H5_LIBS) -larmadillo -o $@
 
-bin/mesh_pdfs: mesh_pdfs.cc $(LIB)
-	mkdir -p bin
-	$(CXX)  mesh_pdfs.cc -I$(INC_DIR) -I$(OXSX_INC) -w -L$(LIB_DIR) -L$(OXSX_LIB_DIR) -l$(LIB_NAME) -l$(OXSX_LIB_NAME)  $(ROOT_FLAGS) $(G4_FLAGS) $(H5_LIBS) -larmadillo -o $@
 
 bin/up_count_lim: up_count_lim.cc $(LIB)
 	mkdir -p bin
