@@ -82,7 +82,7 @@ def read_file(event_config, livetime, pdf_dir, tree_name, data_fraction, outdir)
             print "skipping " + name
             continue
 
-        rate = expected_rate(event_config, name) * livetime
+        rate = expected_rate(event_config, name)
         try:
             with open(os.path.join(pdf_dir, name + ".txt")) as f:
                 # the final matching line is the final efficiency
@@ -93,7 +93,7 @@ def read_file(event_config, livetime, pdf_dir, tree_name, data_fraction, outdir)
                 corr = get_n_gen_correction(event_config, name, tree_name) / data_fraction
 
                 eff = float(match.group(4))/100 * corr 
-                counts[name] = eff * rate
+                counts[name] = eff * rate * livetime
                 efficiencies[name] = eff
                 rates[name] = rate
                 try:
@@ -111,13 +111,13 @@ def read_file(event_config, livetime, pdf_dir, tree_name, data_fraction, outdir)
 
     with open(os.path.join(outdir, "expected_counts.dat"), "w") as logfile:
         row_format = "{0:>20}   {1:>20}   {2:>20}   {3:>20}\n"
-        logfile.write(row_format.format("Name", "Total", "Eff", "In box/yr"))
+        logfile.write(row_format.format("Name", "Total", "Eff", "In box/yr", "In box total"))
         logfile.write("\n")
         for x, y in sorted(counts.items(), key = lambda x: x[1], reverse = True):
-            logfile.write( row_format.format(x, rates[x], efficiencies[x], counts[x]))
+            logfile.write( row_format.format(x, rates[x], efficiencies[x], (counts[x]/livetime), counts[x]))
             
         logfile.write("\n\nExpected counts in fit region ={0}".format( sum(counts.values())))
-        logfile.write("\n\n number of types with expected rate > 1  = {0}".format(len([x for x in counts.values() if x > 1])))
+        logfile.write("\n\n number of types with expected rate > 1/year  = {0}".format(len([x for x in counts.values() if x > (1*livetime)])))
 
 
 if __name__ == "__main__":
