@@ -19,10 +19,12 @@ def get_n_gen_correction(event_config, name, tree_name):
     ngen = int(cparser.get(name, "n_generated"))
 
     try:
-        filenames = os.path.join(cparser.get("summary", "split_ntup_dir")  , name + ".root")
+        filenames = os.path.join(cparser.get("summary", "split_ntup_dir_fake")  , name + ".root")
     except ConfigParser.NoOptionError:
+        print "Failed to read directory from config file!"
         return 1
-
+    
+    
     if ngen == 0:
         return 1
 
@@ -83,19 +85,19 @@ def read_file(event_config, livetime, pdf_dir, tree_name, data_fraction, outdir)
             continue
 
         rate = expected_rate(event_config, name)
+
         try:
             with open(os.path.join(pdf_dir, name + ".txt")) as f:
                 # the final matching line is the final efficiency
                 last_matching_line = [line for line in f.read().splitlines() if re.match(rex, line) is not None][-1]
                 
                 match = re.match(rex, last_matching_line)
-
                 corr = get_n_gen_correction(event_config, name, tree_name) / data_fraction
-
                 eff = float(match.group(4))/100 * corr 
                 counts[name] = eff * rate * livetime
                 efficiencies[name] = eff
                 rates[name] = rate
+
                 try:
                     pdfs[name] = get_pdf(pdf_dir, name, counts[name])
                 except:
@@ -110,7 +112,7 @@ def read_file(event_config, livetime, pdf_dir, tree_name, data_fraction, outdir)
 
 
     with open(os.path.join(outdir, "expected_counts.dat"), "w") as logfile:
-        row_format = "{0:>20}   {1:>20}   {2:>20}   {3:>20}\n"
+        row_format = "{0:>20}   {1:>20}   {2:>20}   {3:>20}    {4:>20}\n"
         logfile.write(row_format.format("Name", "Total", "Eff", "In box/yr", "In box total"))
         logfile.write("\n")
         for x, y in sorted(counts.items(), key = lambda x: x[1], reverse = True):
