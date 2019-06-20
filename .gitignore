@@ -2,7 +2,6 @@
 *~
 *.pyc
 *.sh.*
-*.root
 *.pdf
 
 data/*
@@ -24,12 +23,10 @@ last/*.h5
 last/pdfs/*.root
 last/pdfs/*.txt
 last/pdfs/*.h5
+last/pdfs/projections/*.root
 last/pdfs/smoothing/*.root
 last/pdfs/smoothing/*.txt
 last/pdfs/smoothing/*.h5
-pdfs/*.root
-pdfs/*.txt
-pdfs/*.h5
 
 fit/build/
 last/pdfs/expected/
