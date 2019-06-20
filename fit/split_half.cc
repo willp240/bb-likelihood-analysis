@@ -24,6 +24,8 @@ SplitInTwo(const std::string& filename, const std::string& outdir1, const std::s
     Float_t bipoCumul;
     Float_t bipolh;
     Float_t itr;
+		Float_t timePSD;
+		Float_t anglePSD;
 
     c->SetBranchAddress("energy", &energy);
     c->SetBranchAddress("fitValid", &fitValid);
@@ -32,19 +34,20 @@ SplitInTwo(const std::string& filename, const std::string& outdir1, const std::s
     c->SetBranchAddress("bipoCumul", &bipoCumul);
     c->SetBranchAddress("biPoLikelihood214", &bipolh);
     c->SetBranchAddress("itr", &itr);
-
+    c->SetBranchAddress("timePSD", &timePSD);
+    c->SetBranchAddress("anglePSD", &anglePSD);
     
     std::cout << outdir1 << std::endl;
     TFile output1(outdir1.c_str(), "RECREATE");
-    TNtuple* newTree1 = new TNtuple("pruned", "", "energy:fitValid:reff:qmcdep:bipoCumul:biPoLikelihood214:itr");
+    TNtuple* newTree1 = new TNtuple("pruned", "", "energy:fitValid:reff:qmcdep:bipoCumul:biPoLikelihood214:itr:timePSD:anglePSD");
 
 
     TFile output2(outdir2.c_str(), "RECREATE");
-    TNtuple* newTree2 = new TNtuple("pruned", "", "energy:fitValid:reff:qmcdep:bipoCumul:biPoLikelihood214:itr");
+    TNtuple* newTree2 = new TNtuple("pruned", "", "energy:fitValid:reff:qmcdep:bipoCumul:biPoLikelihood214:itr:timePSD:anglePSD");
 
     for(int i = 0; i < c->GetEntries(); i++){
         c->GetEntry(i);
-        Float_t fillVals[] = {energy, fitValid, reff, qmcdep, bipoCumul, bipolh, itr};
+        Float_t fillVals[] = {energy, fitValid, reff, qmcdep, bipoCumul, bipolh, itr, timePSD, anglePSD};
         if(1. * i/c->GetEntries() < frac){
             newTree1->Fill(fillVals);
         }
