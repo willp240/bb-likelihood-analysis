@@ -98,7 +98,7 @@ MakeDataSets(const std::string& configFile_, double liveTime_, int nDataSets_){
     fs.close();
 
     // save to a new ROOT tree
-    IO::SaveDataSet(ds, outPath + ".root");
+    IO::SaveDataSet(ds, outPath + ".root", "pruned");
 
     std::cout << "\t .. written " << ds.GetNEntries() << " events to "  << outPath + ".root"
 	      << "\t with logfile " << outPath + ".txt\n\n" << std::endl;
@@ -115,7 +115,7 @@ MakeDataSets(const std::string& configFile_, double liveTime_, int nDataSets_){
     content.push_back(countsTaken);
     
     std::cout << "\t.. and saving" << std::endl;
-    IO::SaveDataSet(*remainder, Formatter() << outDirPdf << "/" << names.at(iSet) << ".root");
+    IO::SaveDataSet(*remainder, Formatter() << outDirPdf << "/" << names.at(iSet) << ".root", "pruned");		
     delete remainder;
   }
 
