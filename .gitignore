@@ -3,6 +3,8 @@
 *.pyc
 *.sh.*
 *.pdf
+*.root
+*.h5
 
 data/*
 fit/bin/make_trees
