@@ -118,7 +118,7 @@ Fit(const std::string& mcmcConfigFile_,
   }
   else{
       // Load up the data set
-      ROOTNtuple dataToFit(dataPath_, "oxsx_saved");
+      ROOTNtuple dataToFit(dataPath_, "pruned");
       
       // Log the effects of the cuts
       CutLog log(cutCol.GetCutNames());
