@@ -29,7 +29,6 @@ BuildAzimov(const std::string& evConfigFile_,
     // load up the pdf configuration data
     DistConfigLoader dLoader(pdfConfigFile_);
     DistConfig pConfig = dLoader.Load();
-    std::string distDir = pConfig.GetPDFDir();
 
     // load up all the event types we want to contribute
     typedef std::map<std::string, EventConfig> EvMap;
@@ -132,7 +131,7 @@ BuildAzimov(const std::string& evConfigFile_,
 
 int main(int argc, char* argv[]){
     if(argc != 7 && argc != 8){
-        std::cout << "Usage: make_azimov <event_config_file> <pdf_config_file> <cut_config_file> <live_time(yr)> <out_file(no ext)> <load_from_pdf(0 or 1)> <nGen scaling (optional)>"
+        std::cout << "Usage: ./build_azimov <event_config_file> <pdf_config_file> <cut_config_file> <live_time(yr)> <out_file(no ext)> <load_from_pdf(0 or 1)> <nGen scaling (optional)>"
                   << std::endl;
         return 1;
     }
