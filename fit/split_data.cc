@@ -13,8 +13,45 @@
 #include <Rand.h>
 using namespace bbfit;
 
+void SaveRemainders(DataSetGenerator &dsGen, std::vector<DataSet*> &dataSets, std::vector<std::string> &names, const std::string &configFile_){
+
+	std::string outDirPdf;
+  ConfigLoader::Open(configFile_);
+  ConfigLoader::Load("summary", "split_ntup_dir_pdf", outDirPdf);
+  ConfigLoader::Close();
+
+  struct stat st = {0};
+	if (stat(outDirPdf.c_str(), &st) == -1) {
+    mkdir(outDirPdf.c_str(), 0700);
+  }
+	
+  // save what's left over as independent data sets
+  OXSXDataSet* remainder = NULL;
+  int countsTaken = 0;
+  std::vector<int> content;
+  for(int iSet = 0; iSet < dataSets.size(); iSet++){
+    std::cout << "Assembling the remainder for  " << names.at(iSet) << std::endl;
+
+    remainder = dsGen.AllRemainingEvents(iSet, &countsTaken);
+    content.push_back(countsTaken);
+    
+    std::cout << "\t.. and saving" << std::endl;
+    IO::SaveDataSet(*remainder, Formatter() << outDirPdf << "/" << names.at(iSet) << ".root", "pruned");		
+    delete remainder;
+  }
+
+  std::ofstream fs;
+  fs.open((outDirPdf + "/mc_remainders.txt").c_str());
+  for(size_t i = 0; i < names.size(); i++)
+    fs << names.at(i) << "\t" << content.at(i) << "\n";
+  fs.close();  
+  
+  std::cout << "\n\n Left over events written to  " << outDirPdf
+	    << "\t with logfile " << outDirPdf + "mc_remainders.txt" << std::endl;    
+}
+
 void
-MakeDataSets(const std::string& configFile_, double liveTime_, int nDataSets_){
+MakeDataSets(const std::string& configFile_, double liveTime_, int nDataSets_, bool replaceEvents_){
   // load up the rates of the different event types
   EventConfigLoader loader(configFile_);
 
@@ -49,36 +86,36 @@ MakeDataSets(const std::string& configFile_, double liveTime_, int nDataSets_){
     names.push_back(it->first);
     rates.push_back(expectedCounts);
     flags.push_back(!it->second.GetRandomSplit());
-    // 
+    //
     std::cout << "Loading data set " 
 	      << it->second.GetPrunedPath() 
 	      << " with expected counts "
 	      << expectedCounts
 	      << "\n";
-    if(it->second.GetRandomSplit())
-      std::cout << "random split ";
-    else
-      std::cout << "sequential split";    	
-    std::cout << std::endl;
+		if (replaceEvents_)
+			std::cout << "random split with replacement";
+		else{
+			if(it->second.GetRandomSplit())
+				std::cout << "random split no replacement";
+			else
+				std::cout << "sequential split no replacement";    	
+			std::cout << std::endl;
+		}
   }
 
   DataSetGenerator dsGen;
   dsGen.SetDataSets(dataSets);
   dsGen.SetExpectedRates(rates);
   dsGen.SetSequentialFlags(flags);
+	dsGen.SetBootstrap(replaceEvents_);
   std::string outDirFake;
-  std::string outDirPdf;
   ConfigLoader::Open(configFile_);
   ConfigLoader::Load("summary", "split_ntup_dir_fake", outDirFake);
-  ConfigLoader::Load("summary", "split_ntup_dir_pdf", outDirPdf);
   ConfigLoader::Close();
 
   struct stat st = {0};
   if (stat(outDirFake.c_str(), &st) == -1) {
     mkdir(outDirFake.c_str(), 0700);
-  }
-	if (stat(outDirPdf.c_str(), &st) == -1) {
-    mkdir(outDirPdf.c_str(), 0700);
   }
 
   std::cout << "Generating " << nDataSets_ << " data sets with livetime " << liveTime_
@@ -98,40 +135,22 @@ MakeDataSets(const std::string& configFile_, double liveTime_, int nDataSets_){
     fs.close();
 
     // save to a new ROOT tree
-    IO::SaveDataSet(ds, outPath + ".root");
+    IO::SaveDataSet(ds, outPath + ".root", "pruned");
 
     std::cout << "\t .. written " << ds.GetNEntries() << " events to "  << outPath + ".root"
 	      << "\t with logfile " << outPath + ".txt\n\n" << std::endl;
   }
 
-  // save what's left over as independent data sets
-  OXSXDataSet* remainder = NULL;
-  int countsTaken = 0;
-  content.clear();
-  for(int iSet = 0; iSet < dataSets.size(); iSet++){
-    std::cout << "Assembling the remainder for  " << names.at(iSet) << std::endl;
+	//If events not replaced, save the remainders, otherwise it doesn't make sense
+	if (!replaceEvents_)
+		SaveRemainders(dsGen, dataSets, names, configFile_);
 
-    remainder = dsGen.AllRemainingEvents(iSet, &countsTaken);
-    content.push_back(countsTaken);
-    
-    std::cout << "\t.. and saving" << std::endl;
-    IO::SaveDataSet(*remainder, Formatter() << outDirPdf << "/" << names.at(iSet) << ".root");
-    delete remainder;
-  }
-
-  std::ofstream fs;
-  fs.open((outDirPdf + "/mc_remainders.txt").c_str());
-  for(size_t i = 0; i < names.size(); i++)
-    fs << names.at(i) << "\t" << content.at(i) << "\n";
-  fs.close();  
-  
-  std::cout << "\n\n Left over events written to  " << outDirPdf
-	    << "\t with logfile " << outDirPdf + "mc_remainders.txt" << std::endl;    
 }
 
+
 int main(int argc, char *argv[]){
-  if(argc != 4){
-    std::cout << "\nUsage: ./split_data <event_config_file> <livetime> <n_data_sets>" << std::endl;
+  if(argc != 5){
+    std::cout << "\nUsage: ./split_data <event_config_file> <livetime> <n_data_sets> <replace_events(0 or 1)>" << std::endl;
     return 1;
   }
 
@@ -142,7 +161,10 @@ int main(int argc, char *argv[]){
   double liveTime;
   std::istringstream(argv[2]) >> liveTime;
 
-  MakeDataSets(configFile, liveTime, nDataSets);
+	bool replaceEvents;
+	std::istringstream(argv[4]) >> replaceEvents;
+
+	MakeDataSets(configFile, liveTime, nDataSets, replaceEvents);
    
   return 0;
 }

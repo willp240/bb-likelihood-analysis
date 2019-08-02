@@ -1,3 +1,8 @@
+'''
+Gives counts based on meta information. Important especially for modules with scintEDepCut. Returned is the sum of meta counts across of all given root files. This should be used as an input in event config as n_generated.
+'''
+
+
 from rat import ROOT
 
 def count_ev_indices(*filenames):
@@ -9,7 +14,6 @@ def count_ev_indices(*filenames):
 
         f = ROOT.TFile(fn)
         meta = f.Get("meta")
-        print sum(meta.GetEventsGeneratedCounts())
         total_ngen += sum(meta.GetEventsGeneratedCounts())
         
     print "Len: ", len(filenames)    

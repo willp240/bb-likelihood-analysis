@@ -2,8 +2,9 @@
 *~
 *.pyc
 *.sh.*
-*.root
 *.pdf
+*.root
+*.h5
 
 data/*
 fit/bin/make_trees
@@ -24,10 +25,10 @@ last/*.h5
 last/pdfs/*.root
 last/pdfs/*.txt
 last/pdfs/*.h5
+last/pdfs/projections/*.root
 last/pdfs/smoothing/*.root
 last/pdfs/smoothing/*.txt
 last/pdfs/smoothing/*.h5
-
 
 fit/build/
 last/pdfs/expected/
