@@ -39,7 +39,7 @@ int main(int argc, char *argv[]){
   DistConfigLoader pLoader(pdfConfigFile);
   DistConfig pConfig = pLoader.Load();
   std::string pdfDir = pConfig.GetPDFDir();
-	std::string sumDir = pdfDir + "/summed_composite_pdfs";
+	std::string sumDir = pdfDir + "/summed_composite_pdfs_roi";
   struct stat st = {0};
   if (stat(sumDir.c_str(), &st) == -1) {
     mkdir(sumDir.c_str(), 0700);
@@ -99,7 +99,7 @@ int main(int argc, char *argv[]){
 					double summedBins =0;
 					//only in roi
 					for(size_t iEBin =0; iEBin< 48; iEBin++){
-						if ((iEBin<=lowEBin) && (iEBin>=highEBin)) continue;
+						if ((iEBin<=lowEBin) || (iEBin>=highEBin)) continue;
 						
 						std::vector<size_t> indexVec;
 						indexVec.push_back(iEBin);
@@ -201,7 +201,7 @@ int main(int argc, char *argv[]){
 					normCheck+=toReplace;
 						
 					for(size_t iEBin =0; iEBin< 48; iEBin++){
-						if ((iEBin<=lowEBin) && (iEBin>=highEBin)) continue;
+						if ((iEBin<=lowEBin) || (iEBin>=highEBin)) continue;
 						std::vector<size_t> indexVec;
 						indexVec.push_back(iEBin);
 						indexVec.push_back(iRBin);
@@ -217,74 +217,6 @@ int main(int argc, char *argv[]){
 			std::cout<< "NormCheck: "<< normCheck <<std::endl;
 		}
 	
-
-
-/*}
-
-
-
-	
-	std::map<size_t, double> sumBinMap;	
-	//sum PSD across background groups
-	for(size_t iEBin =0; iEBin< 48; iEBin++){
-		for(size_t iRBin=0; iRBin<6; iRBin++){
-			for(size_t iPSD1Bin=0; iPSD1Bin<5; iPSD1Bin++){
-				for(size_t iPSD2Bin=0; iPSD2Bin<5; iPSD2Bin++){
-					double summedBinContent = 0; 
-					for(std::vector<BinnedED>::iterator it = dists.begin(); it != dists.end(); ++it){
-						std::vector<size_t> indexVec;
-						indexVec.push_back(iEBin);
-						indexVec.push_back(iRBin);
-						indexVec.push_back(iPSD1Bin);
-						indexVec.push_back(iPSD2Bin);
-						size_t index = dist.FlattenIndices(indexVec);
-						summedBinContent += dist.GetBinContent(index);
-					}
-					
-					sumBinMap.insert(std::pair<size_t, double>(index, summedBinContent));
-				}
-			}
-		}
-	}
-
-	//get integrals to normalise back
-	for(std::vector<BinnedED>::iterator it = dists.begin(); it != dists.end(); ++it){
-		BinnedED dist = *it;
-		for(size_t iEBin =0; iEBin< 48; iEBin++){
-			for(size_t iRBin=0; iRBin<6; iRBin++){
-				for(size_t iPSD1Bin=0; iPSD1Bin<5; iPSD1Bin++){
-					double integralBefore=0;
-					double integralAfter=0;
-					for(size_t iPSD2Bin=0; iPSD2Bin<5; iPSD2Bin++){
-						std::vector<size_t> indexVec;
-						indexVec.push_back(iEBin);
-						indexVec.push_back(iRBin);
-						indexVec.push_back(iPSD1Bin);
-						indexVec.push_back(iPSD2Bin);
-						size_t index = dist.FlattenIndices(indexVec);
-						integralBefore += dist.GetBinContent(index);
-						integralAfter += sumBinMap[index];
-					}
-					std::cout << "integral before: " << integralBefore << std::endl;
-					std::cout << "integral after: " << integralAfter << std::endl;
-
-					double correctedIntegral =0;
-					for(size_t iPSD2Bin=0; iPSD2Bin<5; iPSD2Bin++){
-						std::vector<size_t> indexVec;
-						indexVec.push_back(iEBin);
-						indexVec.push_back(iRBin);
-						indexVec.push_back(iPSD1Bin);
-						indexVec.push_back(iPSD2Bin);
-						size_t index = dist.FlattenIndices(indexVec);
-						newContent = summedBinMap[index]*(integralBefore/integralAfter);
-						dist.SetBinContent(index, newContent);
-						correctedIntegral+=newContent;
-					}
-					std::cout << "integral correctd: " << correctedIntegral << std::endl;
-				}
-			}
-		}
-*/	
 
 	// normalise 
 		std::cout<< "Integral" << dist.Integral() << std::endl;	
