@@ -18,3 +18,6 @@ DELTA_R=1500
 ./cut_bipos /data/snoplus/griddata/Prod_Rat6163_TeLoaded/TeLoadedBipo212_triggeredonly/trigs_only.root /data/snoplus/griddata/Prod_Rat6163_TeLoaded/TeLoadedBipo212_cleaned/cleaned.root $DELTA_T1 $DELTA_T2 $DELTA_R /home/kroupova/bb_sigex/data_manip/bipo_cut_eff/Bipo212 $TESTING
 
 ./cut_bipos /data/snoplus/griddata/Prod_Rat6163_TeLoaded/TeLoadedBipo214_triggeredonly/trigs_only.root /data/snoplus/griddata/Prod_Rat6163_TeLoaded/TeLoadedBipo214_cleaned/cleaned.root $DELTA_T1 $DELTA_T2 $DELTA_R /home/kroupova/bb_sigex/data_manip/bipo_cut_eff/Bipo214 $TESTING
+
+
+

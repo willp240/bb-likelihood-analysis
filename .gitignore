@@ -5,6 +5,8 @@
 *.pdf
 *.root
 *.h5
+*.err
+*.out
 
 data/*
 fit/bin/make_trees
