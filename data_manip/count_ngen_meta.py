@@ -14,7 +14,7 @@ def count_ev_indices(*filenames):
 
         f = ROOT.TFile(fn)
         meta = f.Get("meta")
-        total_ngen += sum(meta.GetEventsGeneratedCounts())
+        total_ngen += (meta.GetEventsGeneratedCounts().at(meta.GetCurrentPass()))
         
     print "Len: ", len(filenames)    
     return total_ngen
