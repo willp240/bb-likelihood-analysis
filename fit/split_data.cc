@@ -15,7 +15,7 @@ using namespace bbfit;
 
 void SaveRemainders(DataSetGenerator &dsGen, std::vector<DataSet*> &dataSets, std::vector<std::string> &names, const std::string &configFile_){
 
-	std::string outDirPdf;
+  std::string outDirPdf;
   ConfigLoader::Open(configFile_);
   ConfigLoader::Load("summary", "split_ntup_dir_pdf", outDirPdf);
   ConfigLoader::Close();
@@ -63,7 +63,8 @@ MakeDataSets(const std::string& configFile_, double liveTime_, int nDataSets_, b
   std::vector<double> rates;
   std::vector<DataSet*> dataSets;
   std::vector<bool> flags;
-
+  std::vector<bool> bootstraps;
+	
   for(EvMap::iterator it = active.begin(); it != active.end(); ++it){
     DataSet* ds = new ROOTNtuple(it->second.GetPrunedPath(), "pruned");
     // note the correction for the number of events generated e.g scintEdep cut
@@ -80,34 +81,51 @@ MakeDataSets(const std::string& configFile_, double liveTime_, int nDataSets_, b
       continue;
     }
 
-    Rand::SetSeed(0);
+    //Rand::SetSeed(0);
 
     dataSets.push_back(ds);
     names.push_back(it->first);
     rates.push_back(expectedCounts);
     flags.push_back(!it->second.GetRandomSplit());
-    //
+    bootstraps.push_back(replaceEvents_);
+
+    //Could use the below instead of the line above to make sure to just replace events with low stats
+    //This creates somewhat semi-independent datasets though!!!
+    /*
+    std::cout<< "Name: " << (it->first).c_str() <<std::endl;
+    if ( ((it->first)=="tl208_av") ||
+	 ((it->first)=="tl208_hup") ||
+				 ((it->first)=="tl208_hdr") ||
+				 ((it->first)=="tl208_exwater") ||
+				 ((it->first)=="bi214_av") ||
+				 ((it->first)=="bi214_od") ||
+				 ((it->first)=="bi214_exwater")
+			){
+			bootstraps.push_back(1);
+			std::cout<< "Overring bootstrap! " <<std::endl;
+		
+		}else{
+			bootstraps.push_back(replaceEvents_);
+		}
+
+		std::cout<< "Name: " << it->first <<std::endl;
+    */
+
     std::cout << "Loading data set " 
 	      << it->second.GetPrunedPath() 
 	      << " with expected counts "
 	      << expectedCounts
 	      << "\n";
-		if (replaceEvents_)
-			std::cout << "random split with replacement";
-		else{
-			if(it->second.GetRandomSplit())
-				std::cout << "random split no replacement";
-			else
-				std::cout << "sequential split no replacement";    	
-			std::cout << std::endl;
-		}
-  }
+
+	}
 
   DataSetGenerator dsGen;
   dsGen.SetDataSets(dataSets);
   dsGen.SetExpectedRates(rates);
   dsGen.SetSequentialFlags(flags);
-	dsGen.SetBootstrap(replaceEvents_);
+  dsGen.SetBootstrap(bootstraps);
+		
+	
   std::string outDirFake;
   ConfigLoader::Open(configFile_);
   ConfigLoader::Load("summary", "split_ntup_dir_fake", outDirFake);
@@ -127,6 +145,7 @@ MakeDataSets(const std::string& configFile_, double liveTime_, int nDataSets_, b
     std::cout << "DataSet #" << iSet << std::endl;
     std::string outPath = Formatter() << outDirFake << "/fake_data_lt_" << liveTime_ << "__" << iSet;
 
+    //OXSXDataSet ds = dsGen.ExpectedRatesDataSet(&content);
     OXSXDataSet ds = dsGen.PoissonFluctuatedDataSet(&content);
     std::ofstream fs;
     fs.open((outPath + ".txt").c_str());
