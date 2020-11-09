@@ -22,7 +22,7 @@ EventConfigLoader::LoadOne(const std::string& name_) const{
   ConfigLoader::Load("summary", "orig_base_dir", baseDir);
   ConfigLoader::Load("summary", "pruned_ntup_dir", prunedDir);
   ConfigLoader::Load("summary", "split_ntup_dir_fake", splitDirFake);
-	ConfigLoader::Load("summary", "split_ntup_dir_pdf", splitDirPdf);
+  ConfigLoader::Load("summary", "split_ntup_dir_pdf", splitDirPdf);
 
 
   double rate;
@@ -31,6 +31,7 @@ EventConfigLoader::LoadOne(const std::string& name_) const{
   std::string texLabel;
   std::string splitMethod;
   std::vector<std::string> ntupFiles;
+  std::string scalesWithLoading;
 
   ConfigLoader::Load(name_, "rate", rate);
   ConfigLoader::Load(name_, "tex_label", texLabel);
@@ -39,9 +40,11 @@ EventConfigLoader::LoadOne(const std::string& name_) const{
 
   try{
       ConfigLoader::Load(name_, "n_generated", nGenerated);
+      ConfigLoader::Load(name_, "scales_with_loading", scalesWithLoading);
   }
   catch(const ConfigFieldMissing&){
       nGenerated = 0;
+      scalesWithLoading = "false";
   }
 
 
@@ -61,8 +64,9 @@ EventConfigLoader::LoadOne(const std::string& name_) const{
   retVal.SetNtupBaseDir(baseDir);
   retVal.SetPrunedPath(prunedDir+ "/" + name_ + ".root");
   retVal.SetSplitFakePath(splitDirFake + "/" + name_ + ".root");
-	retVal.SetSplitPdfPath(splitDirPdf + "/" + name_ + ".root");
+  retVal.SetSplitPdfPath(splitDirPdf + "/" + name_ + ".root");
   retVal.SetRandomSplit(randomSplit);
+  retVal.SetLoadingScaling(scalesWithLoading);
   return retVal;
 }
 

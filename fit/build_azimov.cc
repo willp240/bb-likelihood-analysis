@@ -24,7 +24,7 @@ BuildAzimov(const std::string& evConfigFile_,
             const std::string& pdfConfigFile_, 
             const std::string& cutConfigFile_,
             double liveTime_, const std::string& outName_, bool loadPDF_, 
-            double nGenScale_){
+            double nGenScale_, double loadingScale_){
 
     // load up the pdf configuration data
     DistConfigLoader dLoader(pdfConfigFile_);
@@ -81,10 +81,16 @@ BuildAzimov(const std::string& evConfigFile_,
             continue;
         std::cout << "Integral before scale = " << dist.Integral() << std::endl;
         std::cout << "Efficiency  = " << dist.Integral()/nGen << std::endl;
-        dist.Scale(liveTime_ * it->second.GetRate()/nGen);
-        double nanCheck = it->second.GetRate()/nGen;
+        
+	double rate = it->second.GetRate();
+	if (it->second.GetLoadingScaling() == "true"){
+	  std::cout<< "Scaling rate by "<<  loadingScale_ << " due to higher loading" <<std::endl;
+	  rate *=loadingScale_;
+	}
+	dist.Scale(liveTime_ * rate/nGen);
+        double nanCheck = rate/nGen;
 
-        std::cout << liveTime_ << "\t" << it->second.GetRate() << "\t" << nGen << std::endl;
+        std::cout << liveTime_ << "\t" << rate << "\t" << nGen << std::endl;
         if(dist.Integral() == dist.Integral()){
             if(!loadPDF_)
                 azimov.Add(dist);
@@ -130,8 +136,8 @@ BuildAzimov(const std::string& evConfigFile_,
 
 
 int main(int argc, char* argv[]){
-    if(argc != 7 && argc != 8){
-        std::cout << "Usage: ./build_azimov <event_config_file> <pdf_config_file> <cut_config_file> <live_time(yr)> <out_file(no ext)> <load_from_pdf(0 or 1)> <nGen scaling (optional)>"
+    if(argc != 7 && argc != 8 && argc != 9){
+        std::cout << "Usage: ./build_azimov <event_config_file> <pdf_config_file> <cut_config_file> <live_time(yr)> <out_file(no ext)> <load_from_pdf(0 or 1)> <nGen scaling (optional)> <loading scale (optional)>"
                   << std::endl;
         return 1;
     }
@@ -145,9 +151,13 @@ int main(int argc, char* argv[]){
     std::istringstream(argv[6]) >> loadPDF;
     
     double nGenScale = 1;
-    if(argc == 8)
+    if((argc == 8) || (argc == 9))
         std::istringstream(argv[7]) >> nGenScale;
 
-    BuildAzimov(evConfigFile, pdfConfigFile, cutConfigFile, liveTime, outName, loadPDF, nGenScale);
+    double loadingScale = 1;
+    if(argc == 9)
+      std::istringstream(argv[8]) >> loadingScale;
+
+    BuildAzimov(evConfigFile, pdfConfigFile, cutConfigFile, liveTime, outName, loadPDF, nGenScale, loadingScale);
     return 0;
 }

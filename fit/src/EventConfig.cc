@@ -42,6 +42,16 @@ EventConfig::SetTexLabel(const std::string& s_){
 }
 
 std::string
+EventConfig::GetLoadingScaling() const{
+  return fLoadingScaling;
+}
+
+void
+EventConfig::SetLoadingScaling(const std::string& s_){
+  fLoadingScaling = s_;
+}
+
+std::string
 EventConfig::GetName() const{
   return fName;
 }
