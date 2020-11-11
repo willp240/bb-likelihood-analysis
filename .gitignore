@@ -18,6 +18,7 @@ fit/bin/build_azimov
 fit/bin/split_half
 fit/bin/smooth_pdfs
 fit/bin/sum_pdfs
+fit/bin/sum_pdfs_3d
 fit/bin/slice_pdfs
 
 data_manip/clean_alpha_n

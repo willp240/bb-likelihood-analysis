@@ -39,7 +39,7 @@ int main(int argc, char *argv[]){
   DistConfigLoader pLoader(pdfConfigFile);
   DistConfig pConfig = pLoader.Load();
   std::string pdfDir = pConfig.GetPDFDir();
-  std::string sumDir = pdfDir + "/summed_composite_pdfs_full_range";
+	std::string sumDir = pdfDir + "/summed_composite_pdfs_full_range";
   struct stat st = {0};
   if (stat(sumDir.c_str(), &st) == -1) {
     mkdir(sumDir.c_str(), 0700);
@@ -63,20 +63,22 @@ int main(int argc, char *argv[]){
   EventConfigLoader loader(evConfigFile);
   EvMap toGet = loader.LoadActive();
 
-  
+ 
+  // now make and fill the pdfs
   for(EvMap::iterator it = toGet.begin(); it != toGet.end(); ++it){    
     std::cout << "Retrieving distribution for " << it->first << std::endl;
     std::string distPath = pdfDir + "/" + it->first + ".h5";
 		
     BinnedED dist = BinnedED(it->first, IO::LoadHistogram(distPath));
     dists.push_back(dist);
-
-		
+    
+    
+    		
     //full range
     double energyLowPSD = 1.8;
     double energyHighPSD = 3.0; 
     
-    
+
     //in ROI, ignore running of PSD with energy in radial slices 
     //get the boundary energy bins
     AxisCollection axCol = dist.GetAxes();
@@ -88,34 +90,34 @@ int main(int argc, char *argv[]){
     
     for(size_t iRBin=0; iRBin<6; iRBin++){
       std::map<int, double> contentMap;
-      
+		  
       double integralPSD = 0;
       for(size_t iPSD1Bin=0; iPSD1Bin<5; iPSD1Bin++){
-	for(size_t iPSD2Bin=0; iPSD2Bin<5; iPSD2Bin++){
+	
+	
+	//get contents and summ
+	double summedBinContent=0;
+	double summedBins =0;
+	//only in roi
+	for(size_t iEBin =0; iEBin< 48; iEBin++){
+	  //if ((iEBin<=lowEBin) || (iEBin>=highEBin)) continue;
 	  
-	  //get contents and summ
-	  double summedBinContent=0;
-	  double summedBins =0;
-	  //only in roi
-	  for(size_t iEBin =0; iEBin< 48; iEBin++){
-	    //if ((iEBin<=lowEBin) || (iEBin>=highEBin)) continue;
-	    
-	    std::vector<size_t> indexVec;
-	    indexVec.push_back(iEBin);
-	    indexVec.push_back(iRBin);
-	    indexVec.push_back(iPSD1Bin);
-	    indexVec.push_back(iPSD2Bin);
-	    size_t index = dist.FlattenIndices(indexVec);
-						summedBinContent += dist.GetBinContent(index);
-						summedBins++;
-	  }
-	  summedBinContent/=summedBins;
-	  integralPSD+=summedBinContent;
-	  std::cout<< "summedBinContent: " << summedBinContent << std::endl;
-	  std::cout<< "summedBins: " << summedBins <<std::endl;
-					
-	  contentMap.insert(std::make_pair(iPSD1Bin*10+iPSD2Bin, summedBinContent));
+	  std::vector<size_t> indexVec;
+	  indexVec.push_back(iEBin);
+	  indexVec.push_back(iRBin);
+	  indexVec.push_back(iPSD1Bin);
+	  
+	  size_t index = dist.FlattenIndices(indexVec);
+	  summedBinContent += dist.GetBinContent(index);
+	  summedBins++;
 	}
+	summedBinContent/=summedBins;
+	integralPSD+=summedBinContent;
+	std::cout<< "summedBinContent: " << summedBinContent << std::endl;
+	std::cout<< "summedBins: " << summedBins <<std::endl;
+				
+	contentMap.insert(std::make_pair(iPSD1Bin, summedBinContent));
+	
       }
       
       std::map<int, double>::iterator it = contentMap.begin();
@@ -131,53 +133,53 @@ int main(int argc, char *argv[]){
 	}
 	it++;
       }
-      
+			
       vectorOfMaps.push_back(contentMapNormalised);
       
     }
     
-    
+		
     //sum across PSD in energy outside of ROI
     //get the boundary energy bins
     /*AxisCollection axCol = dist.GetAxes();
       BinAxis axE = axCol.GetAxis(0);
       size_t lowEBin = axE.FindBin(energyLowPSD);
-      size_t highEBin = axE.FindBin(energyHighPSD);
+		size_t highEBin = axE.FindBin(energyHighPSD);
     */
     
     for(size_t iEBin =0; iEBin< 48; iEBin++){
       //if ((iEBin>lowEBin) && (iEBin<highEBin)) continue;
       
       for(size_t iRBin=0; iRBin<6; iRBin++){
-	
+
 	
 	//get contents and summ
 	double summedBinContent=0;
 	for(size_t iPSD1Bin=0; iPSD1Bin<5; iPSD1Bin++){
-	  for(size_t iPSD2Bin=0; iPSD2Bin<5; iPSD2Bin++){
-	    std::vector<size_t> indexVec;
-	    indexVec.push_back(iEBin);
-	    indexVec.push_back(iRBin);
-	    indexVec.push_back(iPSD1Bin);
-	    indexVec.push_back(iPSD2Bin);
-	    size_t index = dist.FlattenIndices(indexVec);
-	    summedBinContent += dist.GetBinContent(index);
-	  }
+	  
+	  std::vector<size_t> indexVec;
+	  indexVec.push_back(iEBin);
+	  indexVec.push_back(iRBin);
+	  indexVec.push_back(iPSD1Bin);
+						
+	  size_t index = dist.FlattenIndices(indexVec);
+	  summedBinContent += dist.GetBinContent(index);
+	  
 	}
-	summedBinContent /=25;
+	summedBinContent /=5;
 	
 	//replace
 	for(size_t iPSD1Bin=0; iPSD1Bin<5; iPSD1Bin++){
-	  for(size_t iPSD2Bin=0; iPSD2Bin<5; iPSD2Bin++){
-	    std::vector<size_t> indexVec;
-	    indexVec.push_back(iEBin);
-	    indexVec.push_back(iRBin);
-	    indexVec.push_back(iPSD1Bin);
-	    indexVec.push_back(iPSD2Bin);
-	    size_t index = dist.FlattenIndices(indexVec);
-	    dist.SetBinContent(index, summedBinContent);
-	  }
+	  
+	  std::vector<size_t> indexVec;
+	  indexVec.push_back(iEBin);
+	  indexVec.push_back(iRBin);
+	  indexVec.push_back(iPSD1Bin);
+	  
+	  size_t index = dist.FlattenIndices(indexVec);
+	  dist.SetBinContent(index, summedBinContent);
 	}
+	
 	
       }
     }
@@ -194,28 +196,28 @@ int main(int argc, char *argv[]){
       std::map<int, double> contentMap = vectorOfMaps.at(iRBin);
       double normCheck = 0.0;
       for(size_t iPSD1Bin=0; iPSD1Bin<5; iPSD1Bin++){
-	for(size_t iPSD2Bin=0; iPSD2Bin<5; iPSD2Bin++){
-	  double toReplace = contentMap.find(iPSD1Bin*10+iPSD2Bin)->second;
-	  std::cout<< "toReplace: " << toReplace<< std::endl;
-	  normCheck+=toReplace;
+	
+	double toReplace = contentMap.find(iPSD1Bin)->second;
+	std::cout<< "toReplace: " << toReplace<< std::endl;
+	normCheck+=toReplace;
+					
+	for(size_t iEBin =0; iEBin< 48; iEBin++){
+	  //if ((iEBin<=lowEBin) && (iEBin>=highEBin)) continue;
+	  std::vector<size_t> indexVec;
+	  indexVec.push_back(iEBin);
+	  indexVec.push_back(iRBin);
+	  indexVec.push_back(iPSD1Bin);
 	  
-	  for(size_t iEBin =0; iEBin< 48; iEBin++){
-	    //if ((iEBin<=lowEBin) || (iEBin>=highEBin)) continue;
-	    std::vector<size_t> indexVec;
-	    indexVec.push_back(iEBin);
-	    indexVec.push_back(iRBin);
-	    indexVec.push_back(iPSD1Bin);
-	    indexVec.push_back(iPSD2Bin);
-	    size_t index = dist.FlattenIndices(indexVec);
-	    double oldContent = dist.GetBinContent(index);
-	    dist.SetBinContent(index, (oldContent*toReplace));
-	  }
+	  size_t index = dist.FlattenIndices(indexVec);
+	  double oldContent = dist.GetBinContent(index);
+	  dist.SetBinContent(index, (oldContent*toReplace));
 	}
+	
 	
       }
       std::cout<< "NormCheck: "<< normCheck <<std::endl;
     }
-	
+    
     
     // normalise 
     std::cout<< "Integral" << dist.Integral() << std::endl;	
@@ -223,25 +225,25 @@ int main(int argc, char *argv[]){
       std::cout<< "Normalising" << std::endl;	
       dist.Normalise();
     }
-    
+	
     
     // detect zero bins
     int zeroBins = 0;
     for(int i = 0; i<dist.GetNBins(); i++){
-      if (!dist.GetBinContent(i)){
-	//std::cout << "content "<< dist.GetBinContent(i) << " for bin " << i << std::endl;
-	zeroBins++;
-      }
+			if (!dist.GetBinContent(i)){
+			  //std::cout << "content "<< dist.GetBinContent(i) << " for bin " << i << std::endl;
+			  zeroBins++;
+			}
     }
     std::cout<< "Zero bins in dist " << it->first << " is " << zeroBins << std::endl;
     
     // save as h5
     IO::SaveHistogram(dist.GetHistogram(), sumDir + "/" + it->first + ".h5");
-
+    
     // save as a root histogram if possible
     if(dist.GetNDims() <= 2)
-      IO::SaveHistogram(dist.GetHistogram(), sumDir + "/" + it->first + ".root");
-
+        IO::SaveHistogram(dist.GetHistogram(), sumDir + "/" + it->first + ".root");
+    
     // HigherD save the projections
     if(dist.GetNDims() > 1){
       std::vector<BinnedED> projs = HistTools::GetVisualisableProjections(dist);

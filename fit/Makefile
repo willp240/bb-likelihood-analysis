@@ -22,7 +22,7 @@ LIB_NAME=bbfit
 
 LIB=$(LIB_DIR)/lib$(LIB_NAME).a
 
-all: bin/make_pdfs bin/make_trees bin/split_data bin/fit_dataset bin/up_count_lim bin/build_azimov bin/split_half bin/sum_pdfs bin/smooth_pdfs bin/slice_pdfs
+all: bin/make_pdfs bin/make_trees bin/split_data bin/fit_dataset bin/up_count_lim bin/build_azimov bin/split_half bin/sum_pdfs bin/sum_pdfs_3d bin/smooth_pdfs bin/slice_pdfs
 
 bin/fit_dataset: fit_dataset.cc $(LIB)
 	mkdir -p bin
@@ -60,6 +60,11 @@ bin/sum_pdfs: sum_pdfs.cc $(LIB)
 	$(CXX)  sum_pdfs.cc -I$(INC_DIR) -I$(OXSX_INC) -w -L$(LIB_DIR) -L$(OXSX_LIB_DIR) -l$(LIB_NAME) -l$(OXSX_LIB_NAME)  $(ROOT_FLAGS) $(G4_FLAGS) $(H5_LIBS) -larmadillo -o $@
 
 
+bin/sum_pdfs_3d: sum_pdfs_3d.cc $(LIB)
+	mkdir -p bin
+	$(CXX)  sum_pdfs_3d.cc -I$(INC_DIR) -I$(OXSX_INC) -w -L$(LIB_DIR) -L$(OXSX_LIB_DIR) -l$(LIB_NAME) -l$(OXSX_LIB_NAME)  $(ROOT_FLAGS) $(G4_FLAGS) $(H5_LIBS) -larmadillo -o $@
+
+
 bin/smooth_pdfs: smooth_pdfs.cc $(LIB)
 	mkdir -p bin
 	$(CXX)  smooth_pdfs.cc -I$(INC_DIR) -I$(OXSX_INC) -w -L$(LIB_DIR) -L$(OXSX_LIB_DIR) -l$(LIB_NAME) -l$(OXSX_LIB_NAME)  $(ROOT_FLAGS) $(G4_FLAGS) $(H5_LIBS) -larmadillo -o $@
@@ -68,6 +73,7 @@ bin/smooth_pdfs: smooth_pdfs.cc $(LIB)
 bin/slice_pdfs: slice_pdfs.cc $(LIB)
 	mkdir -p bin
 	$(CXX)  slice_pdfs.cc -I$(INC_DIR) -I$(OXSX_INC) -w -L$(LIB_DIR) -L$(OXSX_LIB_DIR) -l$(LIB_NAME) -l$(OXSX_LIB_NAME)  $(ROOT_FLAGS) $(G4_FLAGS) $(H5_LIBS) -larmadillo -o $@
+
 
 
 $(LIB) : $(OBJ_FILES)
@@ -88,6 +94,7 @@ install:
 	ln -sf `readlink -f bin/up_count_lim` $(PREFIX)
 	ln -sf `readlink -f bin/build_azimov` $(PREFIX)
 	ln -sf `readlink -f bin/sum_pdfs` $(PREFIX)
+	ln -sf `readlink -f bin/sum_pdfs_3d` $(PREFIX)
 	ln -sf `readlink -f bin/smooth_pdfs` $(PREFIX)
 	ln -sf `readlink -f bin/slice_pdfs` $(PREFIX)
 	chmod +x bin/make_pdfs
@@ -99,6 +106,7 @@ install:
 	chmod +x bin/up_count_lim
 	chmod +x bin/build_azimov
 	chmod +x bin/sum_pdfs
+	chmod +x bin/sum_pdfs_3d	
 	chmod +x bin/smooth_pdfs
 	chmod +x bin/slice_pdfs
 
@@ -111,6 +119,7 @@ clean:
 	rm -f bin/build_azimov
 	rm -f bin/split_half
 	rm -f bin/sum_pdfs
+	rm -f bin/sum_pdfs_3d
 	rm -f bin/smooth_pdfs
 	rm -f bin/slice_pdfs
 
@@ -124,6 +133,7 @@ clean:
 	rm -f $(PREFIX)/split_half
 	rm -f $(PREFIX)/build_azimov
 	rm -f $(PREFIX)/sum_pdfs
+	rm -f $(PREFIX)/sum_pdfs_3d
 	rm -f $(PREFIX)/smooth_pdfs
 	rm -f $(PREFIX)/slice_pdfs
 
