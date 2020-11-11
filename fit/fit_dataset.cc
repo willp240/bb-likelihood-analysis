@@ -26,6 +26,7 @@ Fit(const std::string& mcmcConfigFile_,
     const std::string& distConfigFile_,
     const std::string& cutConfigFile_, 
     const std::string& dataPath_,
+    const std::string& dims_,
     const std::string& outDirOverride_){
     Rand::SetSeed(0);
 
@@ -133,7 +134,27 @@ Fit(const std::string& mcmcConfigFile_,
       ofs.close();
   }
 
-  // now build the likelihood
+  //marginalise over PSD for 3D fitting
+  if(dims_=="3d"){
+      std::cout<< "Marginilising for 3d" << std::endl;
+      std::vector<std::string> keepObs;
+      keepObs.push_back("energy");
+      keepObs.push_back("r");
+      keepObs.push_back("timePSD");
+      dataDist = dataDist.Marginalise(keepObs);
+  }
+
+	
+  //marginalise over PSD for 2D fitting
+  if(dims_=="2d"){
+      std::cout<< "Marginilising for 32" << std::endl;
+      std::vector<std::string> keepObs;
+      keepObs.push_back("energy");
+      keepObs.push_back("r");
+      dataDist = dataDist.Marginalise(keepObs);
+  }
+
+// now build the likelihood
   BinnedNLLH lh;
   lh.AddPdfs(dists);
   lh.SetCuts(cutCol);
@@ -228,17 +249,38 @@ Fit(const std::string& mcmcConfigFile_,
   if(dataDist.GetHistogram().GetNDims() < 3){
       ParameterDict bestFit = res.GetBestFit();
       for(size_t i = 0; i < dists.size(); i++){
-          std::string name = dists.at(i).GetName();
-          dists[i].Normalise();
-          dists[i].Scale(bestFit[name]);
-          IO::SaveHistogram(dists[i].GetHistogram(), 
+	  std::string name = dists.at(i).GetName();
+	  dists[i].Normalise();
+	  dists[i].Scale(bestFit[name]);
+	  IO::SaveHistogram(dists[i].GetHistogram(), 
                             scaledDistDir + "/" + name + ".root");
+      }
+  }else{
+      ParameterDict bestFit = res.GetBestFit();
+      for(size_t i = 0; i < dists.size(); i++){
+	  std::string name = dists.at(i).GetName();
+	  dists[i].Normalise();
+	  dists[i].Scale(bestFit[name]);
+	  
+	  std::vector<std::string> keepObs;
+	  keepObs.push_back("r");
+	  keepObs.push_back("energy");
+	  dists[i] = dists[i].Marginalise(keepObs);
+	  IO::SaveHistogram(dists[i].GetHistogram(), 
+			    scaledDistDir + "/" + name + ".root");
       }
   }
 
   // and also save the data
-  if(dataDist.GetHistogram().GetNDims() < 3)
+  if(dataDist.GetHistogram().GetNDims() < 3){
       IO::SaveHistogram(dataDist.GetHistogram(), scaledDistDir + "/" + "data.root");
+  }else{
+      std::vector<std::string> keepObs;
+      keepObs.push_back("r");
+      keepObs.push_back("energy");
+      dataDist = dataDist.Marginalise(keepObs);
+      IO::SaveHistogram(dataDist.GetHistogram(), scaledDistDir + "/" + "data.root");
+  }
   // avoid binning again if not nessecary
   IO::SaveHistogram(dataDist.GetHistogram(),  outDir + "/" + "data.h5");
 
@@ -263,8 +305,8 @@ Fit(const std::string& mcmcConfigFile_,
 }
 
 int main(int argc, char *argv[]){
-  if (argc != 5 && argc != 6){
-    std::cout << "\nUsage: fit_dataset <fit_config_file> <dist_config_file> <cut_config_file> <data_to_fit> <(opt) outdir_override>" << std::endl;
+  if (argc != 6 && argc != 7){
+    std::cout << "\nUsage: fit_dataset <fit_config_file> <dist_config_file> <cut_config_file> <data_to_fit> <4d,3d or 2d> <(opt) outdir_override>" << std::endl;
       return 1;
   }
 
@@ -272,11 +314,12 @@ int main(int argc, char *argv[]){
   std::string pdfPath(argv[2]);
   std::string cutConfigFile(argv[3]);
   std::string dataPath(argv[4]);
+  std::string dims(argv[5]);
   std::string outDirOverride;
-  if(argc == 6)
-    outDirOverride = std::string(argv[5]);
+  if(argc == 7)
+    outDirOverride = std::string(argv[6]);
 
-  Fit(fitConfigFile, pdfPath, cutConfigFile, dataPath, outDirOverride);
+  Fit(fitConfigFile, pdfPath, cutConfigFile, dataPath, dims, outDirOverride);
 
   return 0;
 }

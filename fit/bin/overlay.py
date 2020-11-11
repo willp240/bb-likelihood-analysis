@@ -22,7 +22,7 @@ def assign_group(parser, name):
 def grab_hist(filename):
     f = ROOT.TFile(filename)
     h = f.Get(f.GetListOfKeys()[0].GetName())
-    h.SetDirectory(0)
+    h.SetDirectory(0)    
     return h
 
 def stack(order, hists, labels, colors):
@@ -48,7 +48,7 @@ def stack(order, hists, labels, colors):
 
 def stack_slice(order, hists, labels, colors, bin):
     stack = ROOT.THStack("fit_{0}".format(bin), "")
-    leg   = ROOT.TLegend(0.75, 0.65, 0.95, 0.95)
+    leg   = ROOT.TLegend(0.65, 0.55, 0.88, 0.88)
     projs = {}
     for name in order:
         try:  
@@ -65,6 +65,24 @@ def stack_slice(order, hists, labels, colors, bin):
 
     for name in reversed(order):
         try:
+            if (name=="alphan"):
+                leg.AddEntry(projs[name], "(#alpha, n)", "FL")
+                continue
+            if (name=="2v"):
+                leg.AddEntry(projs[name], "2#nu#beta#beta", "FL")
+                continue
+            if (name=="0v"):
+                leg.AddEntry(projs[name], "0#nu#beta#beta", "FL")
+                continue
+            if (name=="b8_nue"):
+                leg.AddEntry(projs[name], "^{8}B #nu", "FL")
+                continue
+            if (name=="U Chain"):
+                leg.AddEntry(projs[name], "^{238}U Chain", "FL")
+                continue
+            if (name=="Th Chain"):
+                leg.AddEntry(projs[name], "^{232}Th Chain", "FL")
+                continue
             leg.AddEntry(projs[name], labels[name], "FL")            
         except KeyError as e:
             pass
@@ -72,19 +90,34 @@ def stack_slice(order, hists, labels, colors, bin):
 
 
 def savestack(data, stack_, leg, name, x_title, y_title, title, result_dir):
+
+   #ROOT.gROOT.SetStyle("thesisStyleMinipage")
+   #ROOT.gROOT.ForceStyle()
+    
+    
     # draw it
     can =  ROOT.TCanvas()
+    ROOT.gPad.SetLogy()
     stack_.Draw()
     stack_.GetXaxis().SetTitle(x_title)
     stack_.GetYaxis().SetTitle(y_title)
+    stack_.GetYaxis().SetRangeUser(0.5, 10000)
+
+    stack_.GetYaxis().SetLimits(0.5, 10000)
     stack_.SetTitle(title)
     stack_.Draw()
+    stack_.SetMinimum(0.5)
+    stack_.SetMaximum(10000)
     can.Modified()
 
+    data.SetMarkerSize(0)
+    
     data.Draw("same PE")
+    data.SaveAs(os.path.join(result_dir, name + "data.root"))
     leg.AddEntry(data, "Fake Data", "PE")
     leg.Draw("same")
     can.SaveAs(os.path.join(result_dir, name + "stacked_fit.root"))
+    can.SaveAs(os.path.join(result_dir, name + "stacked_fit.pdf"))
     
     
     # now work out a chi square

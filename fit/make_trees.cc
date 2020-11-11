@@ -29,7 +29,7 @@ MakeDataSet(const std::vector<std::string>& filenames_,
 
   // output ntuple
   TFile outp(outFilename_.c_str(), "RECREATE");
-  TNtuple nt("pruned", "", "energy:fitValid:reff:qmcdep:bipoCumul:biPoLikelihood214:itr");
+  TNtuple nt("pruned", "", "energy:fitValid:reff:qmcdep:bipoCumul:biPoLikelihood214:itr:timePSD:anglePSD");
  
   // read the original data
   for(size_t iFile = 0; iFile < filenames_.size(); iFile++){
@@ -49,6 +49,8 @@ MakeDataSet(const std::vector<std::string>& filenames_,
     Double_t bpL214;
     Double_t bpCumul;
     Double_t itr;
+		Double_t timePSD;
+		Double_t anglePSD;
 
     c.SetBranchAddress("energy", &e);
     c.SetBranchAddress("fitValid", &v);
@@ -59,6 +61,8 @@ MakeDataSet(const std::vector<std::string>& filenames_,
     c.SetBranchAddress("biPoCumul", &bpCumul);
     c.SetBranchAddress("biPoLikelihood214", &bpL214);
     c.SetBranchAddress("itr", &itr);
+		c.SetBranchAddress("ext0NuTimeTl208AVNaive", &timePSD);
+		c.SetBranchAddress("ext0NuAngleTl208AV", &anglePSD);
     
     // read and write
     Double_t reff;
@@ -71,7 +75,7 @@ MakeDataSet(const std::vector<std::string>& filenames_,
       reff = Reff(x, y, z);
       
       outp.cd();
-      nt.Fill(e, v, reff, mce, bpCumul, bpL214, itr);
+      nt.Fill(e, v, reff, mce, bpCumul, bpL214, itr, timePSD, anglePSD);
     }
   }
   outp.cd();

@@ -9,5 +9,7 @@ DELTA_T2=3936000
 DELTA_R=1500
 NHIT=50
 
+./remove_notrigs "/data/snoplus/griddata/Prod_Rat6163_TeLoaded/TeLoadedBipo214/*.root" /data/snoplus/griddata/Prod_Rat6163_TeLoaded/TeLoadedBipo214_triggeredonly/trigs_only.root $TESTING
+
 
 ./cut_bipos /data/snoplus/griddata/Prod_Rat6163_TeLoaded/TeLoadedBipo214_triggeredonly/trigs_only.root /data/snoplus/griddata/Prod_Rat6163_TeLoaded/TeLoadedBipo214_cleaned/cleaned.root $DELTA_T1 $DELTA_T2 $DELTA_R $NHIT /home/kroupova/bb_sigex/data_manip/bipo_cut_eff/Bipo214 $TESTING

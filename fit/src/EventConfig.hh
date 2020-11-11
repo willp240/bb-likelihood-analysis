@@ -23,6 +23,9 @@ public:
   std::string GetTexLabel() const;
   void SetTexLabel(const std::string&);
 
+  std::string GetLoadingScaling() const;
+  void SetLoadingScaling(const std::string&);
+
   std::string GetNtupBaseDir() const;
   void SetNtupBaseDir(const std::string&);
 
@@ -48,6 +51,7 @@ private:
 	std::string fSplitPdfPath;   // after the fake data split
   std::string fTexLabel;
   std::string fName;
+  std::string fLoadingScaling;
   bool fRandomSplit;
 };
 }

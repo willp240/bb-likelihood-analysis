@@ -5,6 +5,8 @@
 *.pdf
 *.root
 *.h5
+*.err
+*.out
 
 data/*
 fit/bin/make_trees
@@ -14,6 +16,10 @@ fit/bin/fit_dataset
 fit/bin/up_count_lim
 fit/bin/build_azimov
 fit/bin/split_half
+fit/bin/smooth_pdfs
+fit/bin/sum_pdfs
+fit/bin/sum_pdfs_3d
+fit/bin/slice_pdfs
 
 data_manip/clean_alpha_n
 data_manip/cut_bipos
