@@ -18,6 +18,14 @@
 #include <MCMC.h>
 #include <HamiltonianSampler.h>
 #include <MetropolisSampler.h>
+//#include <Minuit.h>
+
+#include <SystematicManager.h>
+#include <Scale.h>
+#include <Convolution.h>
+#include <Gaussian.h>
+#include <Event.h>
+#include <gsl/gsl_cdf.h>
 
 using namespace bbfit;
 
@@ -44,13 +52,13 @@ Fit(const std::string& mcmcConfigFile_,
         CutConfigLoader cutConfLoader(cutConfigFile_);
         cutConfs = cutConfLoader.LoadActive();
     }
-    
+
 
 
     // create the output directories
     std::string outDir = mcConfig.GetOutDir();
     if(outDirOverride_ != "")
-        outDir = outDirOverride_;
+         outDir = outDirOverride_;
     
     std::string projDir1D = outDir + "/1dlhproj";
     std::string projDir2D = outDir + "/2dlhproj";
@@ -126,8 +134,7 @@ Fit(const std::string& mcmcConfigFile_,
       
       // and bin the data inside
       dataDist = DistBuilder::Build("data", pConfig, (DataSet*)&dataToFit, cutCol, log);
-      
-  // 
+       
       std::ofstream ofs((outDir + "/data_cut_log.txt").c_str());
       ofs << "Cut log for data set " << dataPath_ << std::endl;
       ofs << log.AsString() << std::endl;
@@ -147,7 +154,7 @@ Fit(const std::string& mcmcConfigFile_,
 	
   //marginalise over PSD for 2D fitting
   if(dims_=="2d"){
-      std::cout<< "Marginilising for 32" << std::endl;
+      std::cout<< "Marginilising for 2d" << std::endl;
       std::vector<std::string> keepObs;
       keepObs.push_back("energy");
       keepObs.push_back("r");
@@ -180,9 +187,8 @@ Fit(const std::string& mcmcConfigFile_,
       masses[it->first] = 1/sigmas[it->first]/1/sigmas[it->first];
 
   sampler.SetMasses(masses);
-  
   MCMC mh(sampler);
-
+  mh.SetSaveChain(true);
   mh.SetMaxIter(mcConfig.GetIterations());
   mh.SetBurnIn(mcConfig.GetBurnIn());
   mh.SetMinima(mcConfig.GetMinima());
@@ -194,7 +200,7 @@ Fit(const std::string& mcmcConfigFile_,
 
   mh.SetTestStatLogged(true);
   mh.SetFlipSign(true);
-  
+
   // create some axes for the mc to fill
   AxisCollection lhAxes;
   for(StringSet::iterator it = distsToFit.begin(); it != distsToFit.end();
@@ -207,18 +213,34 @@ Fit(const std::string& mcmcConfigFile_,
   }
 
   mh.SetHistogramAxes(lhAxes);
-  
+
   // go
   const FitResult& res = mh.Optimise(&lh);
   lh.SetParameters(res.GetBestFit());
 
   // Now save the results
   res.SaveAs(outDir + "/fit_result.txt");
-  
+
   std::cout << "Saved fit result to " << outDir + "/fit_result.txt"
             << std::endl;
 
   MCMCSamples samples = mh.GetSamples();
+  TTree* outchain = mh.GetChain();
+  std::string chainFileName = outDir;
+  std::string tempString1 = outDir;
+  std::string tempString2 = outDir;
+  size_t last_slash_idx = tempString1.find_last_of("/");
+  tempString2.erase(0, last_slash_idx+1 );
+  if (std::string::npos != last_slash_idx){
+    tempString1.erase(last_slash_idx,std::string::npos);
+    last_slash_idx = tempString1.find_last_of("/");
+    if (std::string::npos != last_slash_idx)
+      tempString1.erase(0, last_slash_idx );
+  }
+
+  chainFileName = outDir+tempString1+"_"+tempString2+".root";
+  TFile *f = new TFile(chainFileName.c_str(),"recreate");
+  outchain->Write();  
 
   // save the histograms
   typedef std::map<std::string, Histogram> HistMap;
@@ -241,6 +263,10 @@ Fit(const std::string& mcmcConfigFile_,
     IO::SaveHistogram(it->second, projDir2D + "/" + it->first + ".root");
   }
 
+  BinnedED postfitDist;
+  AxisCollection axes = DistBuilder::BuildAxes(pConfig);
+  postfitDist = BinnedED("postfitDist", axes);
+  
   // scale the distributions to the correct heights
   // they are named the same as their fit parameters
   std::cout << "Saving scaled histograms and data to \n\t"
@@ -254,7 +280,10 @@ Fit(const std::string& mcmcConfigFile_,
 	  dists[i].Scale(bestFit[name]);
 	  IO::SaveHistogram(dists[i].GetHistogram(), 
                             scaledDistDir + "/" + name + ".root");
+	  postfitDist.Add(dists[i]);
       }
+      IO::SaveHistogram(postfitDist.GetHistogram(),
+			scaledDistDir + "/postfitdist.root");
   }else{
       ParameterDict bestFit = res.GetBestFit();
       for(size_t i = 0; i < dists.size(); i++){
@@ -268,7 +297,10 @@ Fit(const std::string& mcmcConfigFile_,
 	  dists[i] = dists[i].Marginalise(keepObs);
 	  IO::SaveHistogram(dists[i].GetHistogram(), 
 			    scaledDistDir + "/" + name + ".root");
+	  postfitDist.Add(dists[i]);
       }
+      IO::SaveHistogram(postfitDist.GetHistogram(),
+                        scaledDistDir + "/postfitdist.root");
   }
 
   // and also save the data
