@@ -49,6 +49,8 @@ void GetHPD(TH1D * const post, double &central, double &error, double &error_pos
 void GetArithmetic(TH1D * const hpost, double &mean, double &error);
 void GetGaussian(TH1D *& hpost, TF1 *& gauss, double &central, double &error);
 
+double GetMaxLLHPar(TTree* chain, int maxStep, std::string parname);
+int GetMaxLLHStep(TTree* chain);
 void MakePlots(std::string inputfile, bool correlations = false);
 void GetParLimits(std::string paramName, double &central, double &prior, double &down_error, double &up_error);
 void LoadInputVals();
@@ -111,6 +113,8 @@ void MakePlots(std::string inputFile, bool correlations) {
 
   // Have a counter for how many parameters we have
   int npar = 0;
+
+  int maxLLHStep = GetMaxLLHStep(chain);
 
   // Loop over the number of branches
   chain->SetBranchStatus("*", false);
@@ -177,6 +181,7 @@ void MakePlots(std::string inputFile, bool correlations) {
   TVectorD* HPD_err_p_vec   = new TVectorD(npar); 
   TVectorD* HPD_err_vec   = new TVectorD(npar); 
   TVectorD* HPD_err_m_vec   = new TVectorD(npar); 
+  TVectorD* HLLH_mean_vec = new TVectorD(npar);
 
   TMatrixT<double>* correlation = new TMatrixT<double>(npar,npar);
   for (int i = 0; i < npar; ++i) {
@@ -245,7 +250,8 @@ void MakePlots(std::string inputFile, bool correlations) {
     GetHPD(hpost, peakval, sigma_hpd, sigma_p, sigma_m);
     double gauss_mean, gauss_rms;
     GetGaussian(hpost, gauss, gauss_mean, gauss_rms);
-    
+    double maxllh = GetMaxLLHPar(chain, maxLLHStep, bnames[i].Data() ); 
+
     std::cout << i << ": " << mean << " +/- " << rms << " (" << peakval << "+/-" << sigma_hpd << " + " << sigma_p << " - " << sigma_m << ")" << " (" << gauss_mean << "+/-" << gauss_rms << ")" << std::endl;
     
     TLine *hpd = new TLine(peakval, hpost->GetMinimum(), peakval, hpost->GetMaximum());
@@ -274,7 +280,7 @@ void MakePlots(std::string inputFile, bool correlations) {
       gauss_mean = gauss_mean + 1.0;
       peakval = peakval + 1.0;
     }
-    
+
     (*mean_vec)(i)      = mean;
     (*err_vec)(i)       = rms;
     (*gaus_mean_vec)(i) = gauss_mean;
@@ -284,6 +290,7 @@ void MakePlots(std::string inputFile, bool correlations) {
     (*HPD_err_vec)(i)   = sigma_hpd;
     (*HPD_err_m_vec)(i) = sigma_m;
     (*correlation)(i,i) = 1.0;
+    (*HLLH_mean_vec)(i) = maxllh / central;
     
     hpost->SetLineWidth(2);
     hpost->SetLineColor(kBlack);
@@ -296,11 +303,18 @@ void MakePlots(std::string inputFile, bool correlations) {
     asimov->SetLineColor(kBlue);
     asimov->SetLineWidth(2);
     asimov->SetLineStyle(kDashed);
+    
+    TLine *maxllhline = new TLine(maxllh, hpost->GetMinimum(), maxllh, hpost->GetMaximum());
+    maxllhline->SetLineColor(kMagenta);
+    maxllhline->SetLineWidth(2);
+    maxllhline->SetLineStyle(kDashed);
     hpost->Draw();
     hpd->Draw("same");
     asimov->Draw("same");
+    maxllhline->Draw("same");
     
     leg->AddEntry(asimov, Form("#splitline{Asimov}{x = %.2f}", asimovLine), "l");
+    leg->AddEntry(maxllhline, Form("#splitline{Max LLH}{x = %.2f}", maxllh), "l");
     leg->SetLineColor(0);
     leg->SetLineStyle(0);
     leg->SetFillColor(0);
@@ -423,7 +437,16 @@ void MakePlots(std::string inputFile, bool correlations) {
   paramPlot_HPD->SetFillColor(kRed);
   paramPlot_HPD->SetFillStyle(3154);
   paramPlot_HPD->SetLineColor(paramPlot_HPD->GetMarkerColor());
-  
+
+  //And for highest LLH
+  TH1D *paramPlot_HLLH = (TH1D*)(paramPlot->Clone());
+  paramPlot_HLLH->SetFillColor(kMagenta);
+  paramPlot_HLLH->SetMarkerColor(paramPlot_HLLH->GetFillColor());
+  paramPlot_HLLH->SetMarkerStyle(108);
+  paramPlot_HLLH->SetLineColor(paramPlot_HLLH->GetFillColor());
+  paramPlot_HLLH->SetLineWidth(3);
+  paramPlot_HLLH->SetMarkerSize(prefit->GetMarkerSize());
+
   // Set labels and data
   for (int i = 0; i < npar; ++i) {
     paramPlot->SetBinContent(i+1, (*mean_vec)(i));
@@ -435,6 +458,9 @@ void MakePlots(std::string inputFile, bool correlations) {
     paramPlot_HPD->SetBinContent(i+1, (*HPD_mean_vec)(i));
     double error = (*HPD_err_vec)(i);
     paramPlot_HPD->SetBinError(i+1, error);  
+
+    paramPlot_HLLH->SetBinContent(i+1, (*HLLH_mean_vec)(i));
+    paramPlot_HLLH->SetBinError(i+1, 0.01*paramPlot_HLLH->GetBinContent(i+1) );
   }
 
   // Make a TLegend
@@ -443,6 +469,7 @@ void MakePlots(std::string inputFile, bool correlations) {
   CompLeg->AddEntry(paramPlot_HPD, "Postfit HPD", "fp");
   CompLeg->AddEntry(paramPlot, "Postfit PDF", "lep");
   CompLeg->AddEntry(paramPlot_gauss, "Postfit Gauss", "fp");
+  CompLeg->AddEntry(paramPlot_HLLH, "Postfit HLLH", "lep");
   CompLeg->SetFillColor(0);
   CompLeg->SetFillStyle(0);
   CompLeg->SetLineWidth(0);
@@ -453,7 +480,7 @@ void MakePlots(std::string inputFile, bool correlations) {
   c0->SetBottomMargin(0.2);
   
   file->cd();
-  prefit->GetYaxis()->SetRangeUser(0.1, 1000);
+  prefit->GetYaxis()->SetRangeUser(0.1, 10000.0);
   gPad->SetLogy();
   prefit->GetXaxis()->SetTitle("");
   prefit->GetXaxis()->SetRangeUser(0, npar);
@@ -462,16 +489,19 @@ void MakePlots(std::string inputFile, bool correlations) {
   paramPlot->GetXaxis()->SetRangeUser(0, npar);
   paramPlot_gauss->GetXaxis()->SetRangeUser(0, npar);
   paramPlot_HPD->GetXaxis()->SetRangeUser(0, npar);
-  
+  paramPlot_HLLH->GetXaxis()->SetRangeUser(0, npar);  
+
   prefit->Write("param_prefit");
   paramPlot->Write("param");
   paramPlot_gauss->Write("param_gaus");
   paramPlot_HPD->Write("param_HPD");
+  paramPlot_HPD->Write("param_HLLH");
 
   prefit->Draw("e2");
   paramPlot_gauss->Draw("e2, same");
   paramPlot_HPD->Draw("e2, same");
   paramPlot->Draw("same");
+  paramPlot_HLLH->Draw("e2, same");
 
   CompLeg->SetX1NDC(0.33);
   CompLeg->SetX2NDC(0.80);
@@ -570,6 +600,7 @@ void MakePlots(std::string inputFile, bool correlations) {
   HPD_err_vec->Write("postfit_errors_HPD");
   HPD_err_p_vec->Write("postfit_errors_HPD_pos");
   HPD_err_m_vec->Write("postfit_errors_HPD_neg");
+  HLLH_mean_vec->Write("postfit_params_HLLH");
   correlation->Write("postfit_corr");
   postfitDist->Write("postfit_dist");
   prefitDist->Write("prefit_dist");
@@ -785,7 +816,8 @@ TH1D* MakePrefit(int nPar) {
         PreFitPlot->SetBinError(count+1, constrSigmas[it->first]);
       }
     }
-
+    PreFitPlot->SetBinContent(count+1, 1.0);
+    PreFitPlot->SetBinError(count+1, 0.01);
     count++;
   }
   
@@ -819,4 +851,31 @@ void BlueRedPalette() {
   Double_t blue[NRGBs]  = { 0.50, 1.00, 1.00, 0.25, 0.00 };
   TColor::CreateGradientColorTable(5, stops, red, green, blue, 255);
   gStyle->SetNumberContours(255);
+}
+
+
+int GetMaxLLHStep(TTree* chain){
+
+  int maxLLHStep = 0;
+  double LLH=0;
+  double maxLLh=-999;
+  chain->SetBranchAddress("LogL",&LLH);
+  for(int i=0; i<chain->GetEntries(); i++){
+    chain->GetEntry(i);
+    if(LLH > maxLLh){
+      maxLLh = LLH;
+      maxLLHStep = i;
+    }
+  } 
+
+  return maxLLHStep;
+}
+
+double GetMaxLLHPar(TTree* chain, int maxStep, std::string parname){
+
+  double parval = 0;
+
+  chain->SetBranchAddress(parname.c_str(), &parval);
+  chain->GetEntry(maxStep);
+  return parval;
 }
