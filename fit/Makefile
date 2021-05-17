@@ -4,7 +4,7 @@ G4_FLAGS=`geant4-config --cflags --libs`
 
 GSL_FLAGS=-lgsl
 
-OXSX_ROOT = /home/kroupova/oxsx
+OXSX_ROOT = /home/parkerw/Software/oxsx2
 OXSX_INC=$(OXSX_ROOT)/include
 OXSX_LIB_DIR=$(OXSX_ROOT)/build 
 OXSX_LIB_NAME=oxsx
@@ -22,12 +22,19 @@ LIB_NAME=bbfit
 
 LIB=$(LIB_DIR)/lib$(LIB_NAME).a
 
-all: bin/make_pdfs bin/make_trees bin/split_data bin/fit_dataset bin/up_count_lim bin/build_azimov bin/split_half bin/sum_pdfs bin/sum_pdfs_3d bin/smooth_pdfs bin/slice_pdfs
+all: bin/make_pdfs bin/make_trees bin/split_data bin/fit_dataset bin/up_count_lim bin/build_azimov bin/split_half bin/sum_pdfs bin/sum_pdfs_3d bin/smooth_pdfs bin/slice_pdfs bin/MakePlots bin/llh_scan
 
 bin/fit_dataset: fit_dataset.cc $(LIB)
 	mkdir -p bin
 	$(CXX)  fit_dataset.cc -I$(INC_DIR) -I$(OXSX_INC) -w -L$(LIB_DIR) -L$(OXSX_LIB_DIR) -l$(LIB_NAME) -l$(OXSX_LIB_NAME)  $(ROOT_FLAGS) $(G4_FLAGS) $(H5_LIBS) -larmadillo -o $@
 
+bin/MakePlots: MakePlots.cc $(LIB)
+	mkdir -p bin
+	$(CXX)  MakePlots.cc -I$(INC_DIR) -I$(OXSX_INC) -w -L$(LIB_DIR) -L$(OXSX_LIB_DIR) -l$(LIB_NAME) -l$(OXSX_LIB_NAME)  $(ROOT_FLAGS) $(G4_FLAGS) $(H5_LIBS) -larmadillo -o $@
+
+bin/llh_scan: llh_scan.cc $(LIB)
+	mkdir -p bin
+	$(CXX)  llh_scan.cc -I$(INC_DIR) -I$(OXSX_INC) -w -L$(LIB_DIR) -L$(OXSX_LIB_DIR) -l$(LIB_NAME) -l$(OXSX_LIB_NAME)  $(ROOT_FLAGS) $(G4_FLAGS) $(H5_LIBS) -larmadillo -o $@
 
 bin/up_count_lim: up_count_lim.cc $(LIB)
 	mkdir -p bin
