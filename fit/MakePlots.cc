@@ -1,11 +1,6 @@
-// Compile with something like
-//
-// g++ `root-config --cflags` -g -o MakePlots MakePlots.cpp -I`root-config --incdir` `root-config --glibs --libs`
-//
+// Makes prefit-postfit comparison plots and correlations
 //
 // ./MakePlots will tell you how
-//
-// Should probably prettify this into something managable like classes, or at least some structs
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -33,8 +28,6 @@
 
 #include <FitConfigLoader.hh>
 #include <FitConfig.hh>
-
-// Helper to plot the prefit limits
 
 std::vector<std::string> *parNames;
 std::vector<double> *parRates;
@@ -85,7 +78,6 @@ int main(int argc, char *argv[]) {
 
   MakePlots(filename, correlations);
 
-  // If we want to compare two fits (e.g. binning changes or introducing new params/priors) 
   return 0;
 }
 
@@ -117,11 +109,10 @@ void MakePlots(std::string inputFile, bool correlations) {
   // Make an array of TStrings
   TString bnames[nbr];
 
-  // Have a counter for how many of each parameter we have
+  // Have a counter for how many parameters we have
   int npar = 0;
 
   // Loop over the number of branches
-  // Find the name and how many of each systematic we have
   chain->SetBranchStatus("*", false);
   chain->SetBranchStatus("Step", true);
   for (int i = 0; i < nbr; i++) {
@@ -327,6 +318,7 @@ void MakePlots(std::string inputFile, bool correlations) {
     c0->Write();
     
     // If we're interested in drawing the correlations need to invoke another for loop
+    // Can surely improve this with less repeated code
     if (correlations) {
 
       // Loop over the other parameters to get the correlations
@@ -422,7 +414,7 @@ void MakePlots(std::string inputFile, bool correlations) {
   paramPlot_gauss->SetFillStyle(3244);
   paramPlot_gauss->SetLineColor(paramPlot_gauss->GetMarkerColor());
   
-  // Same but with Gaussian output
+  // Same but with HPD output
   TH1D *paramPlot_HPD = (TH1D*)(paramPlot->Clone());
   paramPlot_HPD->SetMarkerColor(kRed);
   paramPlot_HPD->SetMarkerStyle(25);
@@ -524,19 +516,7 @@ void MakePlots(std::string inputFile, bool correlations) {
       }
 
       BlueRedPalette();
-      /*
-      // Take away the stat box
-      gStyle->SetOptStat(0);
-      // Make pretty correlation colors (red to blue)
-      const int NRGBs = 5;
-      TColor::InitializeColors();
-      Double_t stops[NRGBs] = { 0.00, 0.25, 0.50, 0.75, 1.00 };
-      Double_t red[NRGBs]   = { 0.00, 0.25, 1.00, 1.00, 0.50 };
-      Double_t green[NRGBs] = { 0.00, 0.25, 1.00, 0.25, 0.00 };
-      Double_t blue[NRGBs]  = { 0.50, 1.00, 1.00, 0.25, 0.00 };
-      TColor::CreateGradientColorTable(5, stops, red, green, blue, 255);
-      gStyle->SetNumberContours(255);
-      */
+     
       c0->cd();
       c0->Clear();
       hCorr->Draw("colz");
@@ -692,7 +672,7 @@ void GetGaussian(TH1D *& hpost, TF1 *& gauss, double &central, double &error) {
   // Set the range for the Gaussian fit
   gauss->SetRange(mean - 1.5*err , mean + 1.5*err);
   // Set the starting parameters close to RMS and peaks of the histograms
-  gauss->SetParameters(hpost->GetMaximum()*err*sqrt(2*3.14), peakval, err);
+  gauss->SetParameters(hpost->GetMaximum()*err*sqrt(2*TMath::Pi()), peakval, err);
 
   // Perform the fit
   hpost->Fit(gauss->GetName(),"Rq");
@@ -712,14 +692,6 @@ void LoadInputVals( ) {
   std::map<std::string, double>* tempMap;
   asmvRatesFile->GetObject("AsimovRates",tempMap);
   asimovRates = (ParMap)*tempMap;
-  //asmvRatesFile->GetObject("BackgroundRates",parRates);
-  //for(int i=0; i<parNames->size(); i++){
-  // std::string tempName = parNames->at(i);
-  //if(tempName.find("-") != std::string::npos)
-  //  tempName.replace(tempName.find("-"), 1, "_");
-  //parNames->at(i) = tempName;
-  //asimovRates[parNames->at(i)] = parRates->at(i);
-  // }
 
   FitConfig mcConfig;
   FitConfigLoader mcLoader(mcmcConfigFile);
@@ -813,8 +785,7 @@ TH1D* MakePrefit(int nPar) {
         PreFitPlot->SetBinError(count+1, constrSigmas[it->first]);
       }
     }
-    //    PreFitPlot->SetBinContent(count+1, 1.0);
-    //PreFitPlot->SetBinError(count+1, 0.01);
+
     count++;
   }
   
