@@ -25,6 +25,7 @@
 #include "TVectorD.h"
 #include "TColor.h"
 #include "TKey.h"
+#include "TPaveText.h"
 
 #include <FitConfigLoader.hh>
 #include <FitConfig.hh>
@@ -55,6 +56,7 @@ void MakePlots(std::string inputfile, bool correlations = false);
 void GetParLimits(std::string paramName, double &central, double &prior, double &down_error, double &up_error);
 void LoadInputVals();
 void BlueRedPalette();
+TCanvas* CompareProjections(TH1D* prefit, TH1D* postfit);
 
 int BurnInCut = 5;
 
@@ -144,6 +146,7 @@ void MakePlots(std::string inputFile, bool correlations) {
   c0->SetGrid();
   gStyle->SetOptStat(0);
   gStyle->SetOptTitle(0);
+  gStyle->SetNumberContours(255);
   c0->SetTickx();
   c0->SetTicky();
   c0->SetBottomMargin(0.1);
@@ -251,6 +254,7 @@ void MakePlots(std::string inputFile, bool correlations) {
     double gauss_mean, gauss_rms;
     GetGaussian(hpost, gauss, gauss_mean, gauss_rms);
     double maxllh = GetMaxLLHPar(chain, maxLLHStep, bnames[i].Data() ); 
+    double maxllh_norm;
 
     std::cout << i << ": " << mean << " +/- " << rms << " (" << peakval << "+/-" << sigma_hpd << " + " << sigma_p << " - " << sigma_m << ")" << " (" << gauss_mean << "+/-" << gauss_rms << ")" << std::endl;
     
@@ -275,10 +279,12 @@ void MakePlots(std::string inputFile, bool correlations) {
       sigma_hpd = sigma_hpd / central;
       sigma_p = sigma_p / central;
       sigma_m = sigma_m / central;
+      maxllh_norm = maxllh / central;
     } else if (central == 0) {
       mean = mean + 1.0;
       gauss_mean = gauss_mean + 1.0;
       peakval = peakval + 1.0;
+      maxllh_norm =  maxllh;
     }
 
     (*mean_vec)(i)      = mean;
@@ -290,7 +296,7 @@ void MakePlots(std::string inputFile, bool correlations) {
     (*HPD_err_vec)(i)   = sigma_hpd;
     (*HPD_err_m_vec)(i) = sigma_m;
     (*correlation)(i,i) = 1.0;
-    (*HLLH_mean_vec)(i) = maxllh / central;
+    (*HLLH_mean_vec)(i) = maxllh_norm;
     
     hpost->SetLineWidth(2);
     hpost->SetLineColor(kBlack);
@@ -579,11 +585,60 @@ void MakePlots(std::string inputFile, bool correlations) {
     if(classname == "TH2D")
       postfitDist = (TH2D*)key2->ReadObj();
   }
-  BlueRedPalette();
-  prefitDist->Divide(postfitDist);
-  prefitDist->GetZaxis()->SetRangeUser(0.7,1.3);
+
+  gStyle->SetPalette(51);
+  gStyle->SetOptTitle(1);
+  gPad->SetLogy(0);
+  c0->SetTopMargin(0.1);
+  c0->SetRightMargin(0.13);
+
+  prefitDist->SetTitle("Prefit Distribution");
   prefitDist->Draw("colz");
   c0->Print(canvasname);
+
+  postfitDist->SetTitle("Postfit Distribution");
+  postfitDist->Draw("colz");
+  c0->Print(canvasname);
+
+  BlueRedPalette();
+  
+  TH2D* ratioplot = (TH2D*)prefitDist->Clone();
+  ratioplot->SetTitle("Prefit/Postfit");
+  ratioplot->Divide(postfitDist);
+  ratioplot->GetZaxis()->SetRangeUser(0.7,1.3);
+  ratioplot->Draw("colz");
+  c0->Print(canvasname);
+
+  TH2D* diffplot = (TH2D*)prefitDist->Clone();
+  diffplot->SetTitle("Prefit - Postfit");
+  diffplot->Add(postfitDist,-1);
+  double maxZ = diffplot->GetMaximum();
+  double minZ = diffplot->GetMinimum();
+  double absMaxZ;
+  if(maxZ>-minZ) absMaxZ = maxZ;
+  else absMaxZ = -minZ;
+  diffplot->GetZaxis()->SetRangeUser(-absMaxZ, absMaxZ);
+  diffplot->Draw("colz");
+  c0->Print(canvasname);
+
+  TH1D* PrefitE = (TH1D*)prefitDist->ProjectionX()->Clone();
+  PrefitE->SetName("Prefit_e");
+  TH1D* PrefitR = (TH1D*)prefitDist->ProjectionY()->Clone();
+  PrefitE->SetName("Prefit_r");
+  TH1D* PostfitE = (TH1D*)postfitDist->ProjectionX()->Clone();
+  PrefitE->SetName("Postfit_e");
+  TH1D* PostfitR = (TH1D*)postfitDist->ProjectionY()->Clone();
+  PrefitE->SetName("Postfit_r");
+
+  TCanvas* e1Ds = CompareProjections(PrefitE, PostfitE);
+  e1Ds->SetName("e1Ds");
+  e1Ds->SetTitle("e1Ds");
+  TCanvas* r1Ds = CompareProjections(PrefitR, PostfitR);
+  r1Ds->SetName("r1Ds");
+  r1Ds->SetTitle("r1Ds");
+
+  e1Ds->Print(canvasname);
+  r1Ds->Print(canvasname);
 
   // Then close the pdf file
   std::cout << "Closing pdf " << canvasname << std::endl;
@@ -604,6 +659,10 @@ void MakePlots(std::string inputFile, bool correlations) {
   correlation->Write("postfit_corr");
   postfitDist->Write("postfit_dist");
   prefitDist->Write("prefit_dist");
+  ratioplot->Write("prefit_postfit_ratio");
+  diffplot->Write("prefit_postfit_diff");
+  e1Ds->Write("e_comparisons");
+  r1Ds->Write("r_comparisons");
 
   file->Close();
 }
@@ -878,4 +937,92 @@ double GetMaxLLHPar(TTree* chain, int maxStep, std::string parname){
   chain->SetBranchAddress(parname.c_str(), &parval);
   chain->GetEntry(maxStep);
   return parval;
+}
+
+
+TCanvas* CompareProjections(TH1D* prefit, TH1D* postfit){
+
+  prefit->Sumw2();
+  postfit->Sumw2();
+
+  postfit->GetXaxis()->SetTitleSize(0.07);
+  postfit->GetXaxis()->SetLabelSize(0.06);
+  postfit->GetYaxis()->SetTitleSize(0.07);
+  postfit->GetYaxis()->SetLabelSize(0.06);
+
+  // copy histogram for dividing
+  //TH1D *prefit_copy = (TH1D*)prefit->Clone("prefit_copy");
+  TH1D *postfitn = (TH1D*)postfit->Clone("postfitn");
+  TH1D *prefitn = (TH1D*)prefit->Clone("prefitn");
+
+  prefitn->Divide(prefit);
+  postfitn->Divide(prefit);
+
+  TCanvas* c2 = new TCanvas("c2", "c2", 0, 0, 1500, 1000);
+  c2->SetGrid();
+  
+  postfitn->GetYaxis()->SetRangeUser(0.989,1.011);
+  postfitn->GetYaxis()->SetTitle("Ratio");
+  postfitn->SetTitle("");
+
+  // Make one canvas with both plots
+  double uppermin=0.35;
+  double middlemin=0.237;
+  TPad *lower = new TPad("lower","pad",0,0,1,middlemin);
+  lower->SetGrid();
+  TPad *upper = new TPad("upper","pad",0,middlemin,1,1);
+  upper->SetGrid();
+  upper->SetBottomMargin(0.01);
+  lower->SetTopMargin(0.01);
+  lower->SetBottomMargin(0.58);
+  upper->Draw();
+  lower->Draw();
+  c2->cd();
+
+  // divided
+  lower->cd();
+
+  postfitn->SetTitle("");
+  postfitn->GetYaxis()->SetTitle("Ratio");
+  postfitn->GetYaxis()->CenterTitle();
+  postfitn->GetYaxis()->SetTitleSize(0.16);
+  postfitn->GetYaxis()->SetTitleOffset(0.32);
+  postfitn->GetYaxis()->SetNdivisions(305,kTRUE);
+  postfitn->GetYaxis()->SetLabelSize(0.1);
+  postfitn->GetXaxis()->SetTitleSize(0.17);
+  postfitn->GetXaxis()->SetTitleOffset(1.4);
+  postfitn->GetXaxis()->SetLabelSize(0.13);
+  postfitn->SetLineColor(kBlue);
+  prefitn->SetLineColor(kRed);
+  //  prefitn->SetLineStyle(2);
+  //postfitn->GetXaxis()->SetRangeUser(0,2);
+  postfitn->Draw("L hist");
+  prefitn->Draw("L hist same");
+
+  TLine *line = new TLine(postfitn->GetXaxis()->GetBinLowEdge(1), 1.0, postfitn->GetXaxis()->GetBinUpEdge( postfitn->GetXaxis()->GetNbins() ), 1.0);
+  line->SetLineWidth(1.5);
+  line->SetLineColor(kBlack);
+  line->SetLineStyle(2);
+  line->Draw();
+
+  // un-divided, not- bin normalised
+  upper->cd();
+  postfit->SetTitle("");
+  postfit->GetYaxis()->SetTitle("Events");
+  postfit->GetYaxis()->SetTitleOffset(1.015);
+  postfit->GetYaxis()->SetTitleSize(0.05);
+  postfit->GetYaxis()->SetLabelSize(0.04);
+  postfit->SetLineColor(kBlue);
+  prefit->SetLineColor(kRed);
+  postfit->Draw("e1");
+  prefit->Draw("e1 same");
+
+  TLegend *l = new TLegend(0.15,0.7,0.3,0.85);
+  l->AddEntry(prefit,"Prefit","l");
+  l->AddEntry(postfit,"Postfit","l");
+  l->SetFillColor(0);
+  l->Draw();
+  
+  return c2;
+
 }
