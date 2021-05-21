@@ -30,6 +30,7 @@
 #include <FitConfigLoader.hh>
 #include <FitConfig.hh>
 
+//Should put these in header file
 std::vector<std::string> *parNames;
 std::vector<double> *parRates;
 typedef std::map<std::string, double> ParMap;
@@ -47,17 +48,29 @@ TH1D* MakePrefit(int npar);
 
 // Get the highest posterior density numbers from a 1D posterior
 void GetHPD(TH1D * const post, double &central, double &error, double &error_pos, double &error_neg);
+// Get arithmetic mean and sigma of histogram
 void GetArithmetic(TH1D * const hpost, double &mean, double &error);
+//Fit gaussian and get mean and sigma
 void GetGaussian(TH1D *& hpost, TF1 *& gauss, double &central, double &error);
-
+//Get parameter value at max LLH step
 double GetMaxLLHPar(TTree* chain, int maxStep, std::string parname);
+//Get max LLH step
 int GetMaxLLHStep(TTree* chain);
+
+//Main function with loop over all params
 void MakePlots(std::string inputfile, bool correlations = false);
+
+//Get bounds for each parameter
 void GetParLimits(std::string paramName, double &central, double &prior, double &down_error, double &up_error);
+
+//Load up values from input files
 void LoadInputVals();
 void BlueRedPalette();
+
+//Make 1D prefit/postfit comparisons
 TCanvas* CompareProjections(TH1D* prefit, TH1D* postfit);
 
+//How much burn in should we take off? As a fraction of total steps i.e BurnInCut=5 means reject the first 1/5th of steps
 int BurnInCut = 5;
 
 using namespace bbfit;
@@ -75,6 +88,7 @@ int main(int argc, char *argv[]) {
   scaledPostfitDistFileName = argv[4];
   mcmcConfigFile = argv[5];
 
+  //Plotting correlations gives lots of plots and takes a bit of time, so only do if user wants to
   bool correlations = false;
   if (argc == 7) {
       correlations = true;
@@ -159,7 +173,6 @@ void MakePlots(std::string inputFile, bool correlations) {
 
   TString canvasname = inputFile;
   // Append if we're drawing correlations
-  // Open bracket means we want to make a pdf file
   if (correlations) {
     canvasname += "_plotCorrelations.pdf[";
   } else {
@@ -215,9 +228,11 @@ void MakePlots(std::string inputFile, bool correlations) {
   for(int i = 0; i < npar; ++i) {
 
     file->cd();
+    //Number of bins in 1D plot
     int nbins = 70;
     double asimovLine = 0.0;
     
+    //Get bounds and asimov rates for parameter
     std::string tempString = std::string(bnames[i]);
     double central, prior, down, up;
     GetParLimits(tempString, central, prior, down, up);
@@ -230,8 +245,6 @@ void MakePlots(std::string inputFile, bool correlations) {
     TH1 *htemp = (TH1*)gPad->GetPrimitive("htemp");
     double maximum = 1.1*htemp->GetMaximumStored();
     double minimum = 0.9*htemp->GetMinimumStored();
-    //double maximum = chain->GetMaximum(bnames[i]);
-    //double minimum = chain->GetMinimum(bnames[i]);
     
     // This holds the posterior density
     TH1D *hpost = new TH1D(bnames[i], bnames[i], nbins, minimum, maximum);
@@ -270,6 +283,7 @@ void MakePlots(std::string inputFile, bool correlations) {
     leg->AddEntry(gauss, Form("#splitline{Gauss}{#mu = %.2f, #sigma = %.2f}", gauss->GetParameter(1), gauss->GetParameter(2)), "l");
     leg->AddEntry(hpd, Form("#splitline{HPD}{#mu = %.2f, #sigma = %.2f (+%.2f-%.2f)}", peakval, sigma_hpd, sigma_p, sigma_m), "l");
     
+    //Now take values as a ratio to asimov rate. If asimov rate is 0, set central value to 1 for plotting
     if (central != 0) {
       mean = mean / central;
       rms = rms / central;
@@ -310,10 +324,13 @@ void MakePlots(std::string inputFile, bool correlations) {
     asimov->SetLineWidth(2);
     asimov->SetLineStyle(kDashed);
     
+    //And the line for parameter value in the single step that has biggest LLH
     TLine *maxllhline = new TLine(maxllh, hpost->GetMinimum(), maxllh, hpost->GetMaximum());
     maxllhline->SetLineColor(kMagenta);
     maxllhline->SetLineWidth(2);
     maxllhline->SetLineStyle(kDashed);
+
+    //And draw it all
     hpost->Draw();
     hpd->Draw("same");
     asimov->Draw("same");
@@ -338,7 +355,7 @@ void MakePlots(std::string inputFile, bool correlations) {
     c0->Write();
     
     // If we're interested in drawing the correlations need to invoke another for loop
-    // Can surely improve this with less repeated code
+    // Can surely improve this with less repeated code but it will do for now
     if (correlations) {
 
       // Loop over the other parameters to get the correlations
@@ -363,9 +380,7 @@ void MakePlots(std::string inputFile, bool correlations) {
 	TH1 *htemp2 = (TH1*)gPad->GetPrimitive("htemp");
 	double maximum2 = 1.1*htemp2->GetMaximumStored();
 	double minimum2 = 0.9*htemp2->GetMinimumStored();
-	//double maximum2 = chain->GetMaximum(bnames[j]);
-	//double minimum2 = chain->GetMinimum(bnames[j]);
-	
+		
 	// TH2F to hold the correlation 
 	TH2F *hpost2 = new TH2F(drawcmd, drawcmd, hpost->GetNbinsX(), hpost->GetBinLowEdge(0), hpost->GetBinLowEdge(hpost->GetNbinsX()+1), nbins, minimum2, maximum2);
 	hpost2->SetMinimum(0);
@@ -416,7 +431,6 @@ void MakePlots(std::string inputFile, bool correlations) {
   TH1D *paramPlot = new TH1D("paramPlot", "paramPlot", npar, 0, npar);
   paramPlot->SetName("postfitparams");
   paramPlot->SetTitle(stepcut.c_str());
-  //paramPlot->SetFillStyle(3001);
   paramPlot->SetFillColor(kBlack);
   paramPlot->SetMarkerColor(paramPlot->GetFillColor());
   paramPlot->SetMarkerStyle(108);
@@ -466,7 +480,8 @@ void MakePlots(std::string inputFile, bool correlations) {
     paramPlot_HPD->SetBinError(i+1, error);  
 
     paramPlot_HLLH->SetBinContent(i+1, (*HLLH_mean_vec)(i));
-    paramPlot_HLLH->SetBinError(i+1, 0.01*paramPlot_HLLH->GetBinContent(i+1) );
+    //This is a bit of a fudge. Don't have error for HLLH as it's just a parameter value at a single step. But the if the error is set to 0 the plot doesn't show up (not sure why). Could set to a small but finite number, say 0.01, as we plot over log y scale the line draws thicker for lower parameter values. So to show a 0 error (to the eye) and have constant line size, we set the error to be a very small constant fraction of the bin content
+    paramPlot_HLLH->SetBinError(i+1,0.01*paramPlot_HLLH->GetBinContent(i+1) );
   }
 
   // Make a TLegend
@@ -492,6 +507,7 @@ void MakePlots(std::string inputFile, bool correlations) {
   prefit->GetXaxis()->SetRangeUser(0, npar);
   prefit->GetXaxis()->LabelsOption("v");
   
+  //Plot and write all the full parameter histograms
   paramPlot->GetXaxis()->SetRangeUser(0, npar);
   paramPlot_gauss->GetXaxis()->SetRangeUser(0, npar);
   paramPlot_HPD->GetXaxis()->SetRangeUser(0, npar);
@@ -524,6 +540,7 @@ void MakePlots(std::string inputFile, bool correlations) {
   c0->SetLeftMargin(0.1);
   c0->SetBottomMargin(0.1);
   
+  //Now do printing for correlations
   TH2D* hCorr = NULL;
   if (correlations) {
     gPad->SetLogy(0);
@@ -563,6 +580,7 @@ void MakePlots(std::string inputFile, bool correlations) {
       hCorr->Write("postfit_corr_plot");
   }
 
+  //Read prefit event distribution
   TFile *asmvDistsFile = new TFile(asmvDistsFileName.c_str(), "READ");
   asmvDistsFile->cd();
   TH2D* prefitDist;
@@ -574,6 +592,7 @@ void MakePlots(std::string inputFile, bool correlations) {
       prefitDist = (TH2D*)key->ReadObj();
   }
 
+  //Read postfit event distribution
   TFile *scaledPostfitDistFile = new TFile(scaledPostfitDistFileName.c_str(), "READ");
   scaledPostfitDistFile->cd();
   TH2D* postfitDist;
@@ -592,6 +611,7 @@ void MakePlots(std::string inputFile, bool correlations) {
   c0->SetTopMargin(0.1);
   c0->SetRightMargin(0.13);
 
+  //Draw prefit and postfit event distributions
   prefitDist->SetTitle("Prefit Distribution");
   prefitDist->Draw("colz");
   c0->Print(canvasname);
@@ -602,6 +622,7 @@ void MakePlots(std::string inputFile, bool correlations) {
 
   BlueRedPalette();
   
+  //Take ratio prefit over postfit
   TH2D* ratioplot = (TH2D*)prefitDist->Clone();
   ratioplot->SetTitle("Prefit/Postfit");
   ratioplot->Divide(postfitDist);
@@ -609,9 +630,11 @@ void MakePlots(std::string inputFile, bool correlations) {
   ratioplot->Draw("colz");
   c0->Print(canvasname);
 
+  //And let's look at the the absolute difference as well
   TH2D* diffplot = (TH2D*)prefitDist->Clone();
   diffplot->SetTitle("Prefit - Postfit");
   diffplot->Add(postfitDist,-1);
+  //A bit fiddly here, but basically want z axis to be symmetric around 0
   double maxZ = diffplot->GetMaximum();
   double minZ = diffplot->GetMinimum();
   double absMaxZ;
@@ -621,6 +644,7 @@ void MakePlots(std::string inputFile, bool correlations) {
   diffplot->Draw("colz");
   c0->Print(canvasname);
 
+  //Now make 1D projections
   TH1D* PrefitE = (TH1D*)prefitDist->ProjectionX()->Clone();
   PrefitE->SetName("Prefit_e");
   TH1D* PrefitR = (TH1D*)prefitDist->ProjectionY()->Clone();
@@ -630,6 +654,7 @@ void MakePlots(std::string inputFile, bool correlations) {
   TH1D* PostfitR = (TH1D*)postfitDist->ProjectionY()->Clone();
   PrefitE->SetName("Postfit_r");
 
+  //Make comparisons of these 1D projections
   TCanvas* e1Ds = CompareProjections(PrefitE, PostfitE);
   e1Ds->SetName("e1Ds");
   e1Ds->SetTitle("e1Ds");
@@ -667,8 +692,10 @@ void MakePlots(std::string inputFile, bool correlations) {
   file->Close();
 }
 
+// **************************
 // Get the highest posterior density from a TH1D
 void GetHPD(TH1D * const hpost, double &central, double &error, double &error_pos, double &error_neg) {
+// **************************
 
   // Get the bin which has the largest posterior density
   int MaxBin = hpost->GetMaximumBin();
@@ -681,7 +708,7 @@ void GetHPD(TH1D * const hpost, double &central, double &error, double &error_po
   // Keep count of how much area we're covering
   double sum = 0.0;
 
-  // Counter for current bin
+  // Counter for current bin. Going to get the error but counting outwards in each direction from the center til we reach fraction of events corresponding to 1 sigma
   int CurrBin = MaxBin;
   while (sum/integral < 0.6827/2.0 && CurrBin < hpost->GetNbinsX()+1) {
     sum += hpost->GetBinContent(CurrBin);
@@ -693,7 +720,7 @@ void GetHPD(TH1D * const hpost, double &central, double &error, double &error_po
 
   // Reset the bin counter
   CurrBin = MaxBin;
-  // Counter for current bin
+  // Counter for current bin, now going counting bins down from HPD bin
   while (sum/integral < 0.6827/2.0 && CurrBin >= 0) {
     sum += hpost->GetBinContent(CurrBin);
     CurrBin--;
@@ -774,15 +801,19 @@ void GetGaussian(TH1D *& hpost, TF1 *& gauss, double &central, double &error) {
 }
 
 // **************************
-// Function to get limits for a parameter from the input
+// Function to get limits for all parameters from the input
 void LoadInputVals( ) {
   // **************************
+
+  //Get asimov rates in a map
   TFile *asmvRatesFile = new TFile(asmvRatesFileName.c_str(), "OPEN");
   asmvRatesFile->cd();
+  //Can't do GetObject for our own type (ParMap), so use a temporary std::map and cast
   std::map<std::string, double>* tempMap;
   asmvRatesFile->GetObject("AsimovRates",tempMap);
   asimovRates = (ParMap)*tempMap;
 
+  //read fit config
   FitConfig mcConfig;
   FitConfigLoader mcLoader(mcmcConfigFile);
   mcConfig = mcLoader.LoadActive();
@@ -799,6 +830,7 @@ void LoadInputVals( ) {
   ParMap tempMaxs;
   ParMap tempRates;
 
+  //ttrees don't like hyphens in names so loop over parameters, switch any - to _ (currently only pmt-bg), and then set values for temporary ParMaps
   for(ParameterDict::iterator it = mins.begin(); it != mins.end(); ++it){
     std::string tempName = it->first;
     if(tempName.find("-") != std::string::npos)
@@ -810,6 +842,7 @@ void LoadInputVals( ) {
     tempRates[tempName] = asimovRates[it->first];
   }
 
+  //and now set all the maps to the temporary maps
   constrMeans = tempMeans;
   constrSigmas = tempSigmas;
   mins = tempMins;
@@ -818,7 +851,7 @@ void LoadInputVals( ) {
 }
 
 // **************************
-// Function to get limits for a parameter from the input
+// Function to get limits for a single parameter from the already loaded input
 void GetParLimits(std::string paramName, double &central, double &prior, double &down_error, double &up_error) {
   // **************************
 
@@ -850,6 +883,7 @@ void GetParLimits(std::string paramName, double &central, double &prior, double 
 TH1D* MakePrefit(int nPar) {
   // *****************************
   
+  //Initialise a 1D plot over all parameters to 0
   TH1D *PreFitPlot = new TH1D("Prefit", "Prefit", nPar, 0, nPar);
   for (int i = 0; i < PreFitPlot->GetNbinsX() + 1; ++i) {
     PreFitPlot->SetBinContent(i+1, 0);
@@ -857,6 +891,7 @@ TH1D* MakePrefit(int nPar) {
   }
 
   int count = 0;
+  //You could have made asimov rates for more events than you fit over, so iterate over one of the maps from the fit config so you only get the fitted parameters
   for(ParameterDict::iterator it = mins.begin(); it != mins.end(); ++it){
     if(asimovRates[it->first] != 0) {
       PreFitPlot->SetBinContent(count+1, asimovRates[it->first]/asimovRates[it->first]);
@@ -866,7 +901,7 @@ TH1D* MakePrefit(int nPar) {
 	PreFitPlot->SetBinError(count+1, constrSigmas[it->first]/asimovRates[it->first]);
       }
     }
-
+    //If the asimov rate is 0, don't normalise, but set to 1 so it's still represented as a ratio to the asimov rate
     else {
       PreFitPlot->SetBinContent(count+1, asimovRates[it->first]+1);
       PreFitPlot->GetXaxis()->SetBinLabel(count+1, it->first.c_str());
@@ -875,8 +910,7 @@ TH1D* MakePrefit(int nPar) {
         PreFitPlot->SetBinError(count+1, constrSigmas[it->first]);
       }
     }
-    PreFitPlot->SetBinContent(count+1, 1.0);
-    PreFitPlot->SetBinError(count+1, 0.01);
+    //Keep count of number of parameters to get the right bin each time. This depends on eahc iteration over a map to be done in the same order, which I think is ok
     count++;
   }
   
@@ -896,9 +930,12 @@ TH1D* MakePrefit(int nPar) {
   return PreFitPlot;
 }
 
-
+// *****************************
+// Set palette to be blue->red centered on white. Useful for the 2D ratio and difference plots
+// if z axis is centered on 1 (for ratio) or 0 (for difference) as you can easily distinguish
+// positive and negative changes
 void BlueRedPalette() {
-
+// *****************************
   // Take away the stat box
   gStyle->SetOptStat(0);
   // Make pretty correlation colors (red to blue)
@@ -912,15 +949,22 @@ void BlueRedPalette() {
   gStyle->SetNumberContours(255);
 }
 
-
+// *****************************
+// Get the step number of the step with the maximum LLH
 int GetMaxLLHStep(TTree* chain){
+// *****************************
 
   int maxLLHStep = 0;
   double LLH=0;
   double maxLLh=-999;
   chain->SetBranchAddress("LogL",&LLH);
+  
+  //Loop over steps
   for(int i=0; i<chain->GetEntries(); i++){
+    //Get step
     chain->GetEntry(i);
+
+    //update max llh found so far, and the current highest step number
     if(LLH > maxLLh){
       maxLLh = LLH;
       maxLLHStep = i;
@@ -930,8 +974,12 @@ int GetMaxLLHStep(TTree* chain){
   return maxLLHStep;
 }
 
+// *****************************
+// Get the parameter value at a given step. Intention is for step to be the one with the
+// maximum LLH in the chain, so you find the parameter value there. But could be used 
+// for any step (i.e maxStep could be any step number)
 double GetMaxLLHPar(TTree* chain, int maxStep, std::string parname){
-
+// *****************************
   double parval = 0;
 
   chain->SetBranchAddress(parname.c_str(), &parval);
@@ -939,8 +987,10 @@ double GetMaxLLHPar(TTree* chain, int maxStep, std::string parname){
   return parval;
 }
 
-
+// *****************************
+// Make a canvas comparing two 1D plots with ratio panel
 TCanvas* CompareProjections(TH1D* prefit, TH1D* postfit){
+// *****************************
 
   prefit->Sumw2();
   postfit->Sumw2();
@@ -950,11 +1000,9 @@ TCanvas* CompareProjections(TH1D* prefit, TH1D* postfit){
   postfit->GetYaxis()->SetTitleSize(0.07);
   postfit->GetYaxis()->SetLabelSize(0.06);
 
-  // copy histogram for dividing
-  //TH1D *prefit_copy = (TH1D*)prefit->Clone("prefit_copy");
+  // copy histograms for dividing to get ratio
   TH1D *postfitn = (TH1D*)postfit->Clone("postfitn");
   TH1D *prefitn = (TH1D*)prefit->Clone("prefitn");
-
   prefitn->Divide(prefit);
   postfitn->Divide(prefit);
 
@@ -994,11 +1042,10 @@ TCanvas* CompareProjections(TH1D* prefit, TH1D* postfit){
   postfitn->GetXaxis()->SetLabelSize(0.13);
   postfitn->SetLineColor(kBlue);
   prefitn->SetLineColor(kRed);
-  //  prefitn->SetLineStyle(2);
-  //postfitn->GetXaxis()->SetRangeUser(0,2);
   postfitn->Draw("L hist");
   prefitn->Draw("L hist same");
 
+  //Draw line at unity for ratio plot
   TLine *line = new TLine(postfitn->GetXaxis()->GetBinLowEdge(1), 1.0, postfitn->GetXaxis()->GetBinUpEdge( postfitn->GetXaxis()->GetNbins() ), 1.0);
   line->SetLineWidth(1.5);
   line->SetLineColor(kBlack);
@@ -1017,6 +1064,7 @@ TCanvas* CompareProjections(TH1D* prefit, TH1D* postfit){
   postfit->Draw("e1");
   prefit->Draw("e1 same");
 
+  //Draw legend
   TLegend *l = new TLegend(0.15,0.7,0.3,0.85);
   l->AddEntry(prefit,"Prefit","l");
   l->AddEntry(postfit,"Postfit","l");
