@@ -137,6 +137,7 @@ BuildAzimov(const std::string& evConfigFile_,
             for(size_t is = 0; is < highDdist.GetNDims(); is++)
                 std::cout << highDdist.GetAxes().GetAxis(is).GetNBins() << std::endl;
             azimov.Add(highDdist);
+	    indivAsmvDists.push_back(dist);
         }
 
         delete ds;
@@ -152,10 +153,25 @@ BuildAzimov(const std::string& evConfigFile_,
                             outName_ + "/" + name + ".root");
 	  asimovmap[name] = indivAsmvDists[i].GetHistogram().Integral();
 	}
-	TFile *fRates = TFile::Open((outName_+"/asimovRates.root").c_str(), "RECREATE");
-	fRates->WriteObject(&asimovmap, "AsimovRates");
-	fRates->Close();
     }
+    else{
+      std::vector<std::string> keepObs;
+      keepObs.push_back("r");
+      keepObs.push_back("energy");
+      azimov = azimov.Marginalise(keepObs);
+      IO::SaveHistogram(azimov.GetHistogram(), outName_ + ".root");
+      for(size_t i = 0; i < indivAsmvDists.size(); i++){
+	indivAsmvDists[i] = indivAsmvDists[i].Marginalise(keepObs);
+	std::string name = indivAsmvDists.at(i).GetName();
+	IO::SaveHistogram(indivAsmvDists[i].GetHistogram(),
+			  outName_ + "/" + name + ".root");
+	asimovmap[name] = indivAsmvDists[i].GetHistogram().Integral();
+      }
+    }
+    TFile *fRates = TFile::Open((outName_+"/asimovRates.root").c_str(), "RECREATE");
+    fRates->WriteObject(&asimovmap, "AsimovRates");
+    fRates->Close();
+    
     return;
 }
 
