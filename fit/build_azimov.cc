@@ -14,11 +14,8 @@
 #include <CutFactory.hh>
 #include <CutLog.h>
 #include <string>
-#include <sys/stat.h>
 #include <iostream>
 #include <sstream>
-#include <fstream>
-#include <TFile.h>
 
 using namespace bbfit;
 
@@ -57,23 +54,14 @@ BuildAzimov(const std::string& evConfigFile_,
     }
     CutLog log(cutCol.GetCutNames());
 
-    struct stat st = {0};
-    if (stat(outName_.c_str(), &st) == -1) {
-      mkdir(outName_.c_str(), 0700);
-    }
-
     // create the empty dist
     BinnedED azimov;
-    std::vector<BinnedED> indivAsmvDists;
     bool setAxes = false;
     if(!loadPDF_){
         AxisCollection axes = DistBuilder::BuildAxes(pConfig);
         azimov = BinnedED("azimov", axes);
         setAxes = true;
     }
-
-    std::vector<std::string> names;
-    std::vector<double> rates;
 
     // now build each of the PDFs, scale them to the correct size and add it to the azimov
     for(EvMap::iterator it = toGet.begin(); it != toGet.end(); ++it){
@@ -104,11 +92,9 @@ BuildAzimov(const std::string& evConfigFile_,
 
         std::cout << liveTime_ << "\t" << rate << "\t" << nGen << std::endl;
         if(dist.Integral() == dist.Integral()){
-	  if(!loadPDF_){
+            if(!loadPDF_)
                 azimov.Add(dist);
-		indivAsmvDists.push_back(dist);
-	  }
-	  std::cout << "Added " << dist.Integral() << " of event type " << it->first << std::endl;
+            std::cout << "Added " << dist.Integral() << " of event type " << it->first << std::endl;
         }
         else{
             std::cout << "Skipped " << it->first << std::endl;
@@ -143,19 +129,8 @@ BuildAzimov(const std::string& evConfigFile_,
     }    
     
     IO::SaveHistogram(azimov.GetHistogram(), outName_ + ".h5");
-    std::map < std::string, double > asimovmap;
-    if(azimov.GetNDims() < 3){
+    if(azimov.GetNDims() < 3)
         IO::SaveHistogram(azimov.GetHistogram(), outName_ + ".root");
-	for(size_t i = 0; i < indivAsmvDists.size(); i++){
-	  std::string name = indivAsmvDists.at(i).GetName();
-	  IO::SaveHistogram(indivAsmvDists[i].GetHistogram(),
-                            outName_ + "/" + name + ".root");
-	  asimovmap[name] = indivAsmvDists[i].GetHistogram().Integral();
-	}
-	TFile *fRates = TFile::Open((outName_+"/asimovRates.root").c_str(), "RECREATE");
-	fRates->WriteObject(&asimovmap, "AsimovRates");
-	fRates->Close();
-    }
     return;
 }
 
