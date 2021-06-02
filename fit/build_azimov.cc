@@ -105,7 +105,7 @@ BuildAzimov(const std::string& evConfigFile_,
 
         std::cout << liveTime_ << "\t" << rate << "\t" << nGen << std::endl;
         if(dist.Integral() == dist.Integral()){
-	  if(!loadPDF_){
+	    if(!loadPDF_){
                 azimov.Add(dist);
 		//vector of each interaction type distribution
 		indivAsmvDists.push_back(dist);

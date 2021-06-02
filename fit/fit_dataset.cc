@@ -18,16 +18,9 @@
 #include <MCMC.h>
 #include <HamiltonianSampler.h>
 #include <MetropolisSampler.h>
-//#include <Minuit.h>
-
-#include <SystematicManager.h>
-#include <Scale.h>
-#include <Convolution.h>
-#include <Gaussian.h>
-#include <Event.h>
-#include <gsl/gsl_cdf.h>
 
 using namespace bbfit;
+
 
 void
 Fit(const std::string& mcmcConfigFile_, 
@@ -54,11 +47,10 @@ Fit(const std::string& mcmcConfigFile_,
     }
 
 
-
     // create the output directories
     std::string outDir = mcConfig.GetOutDir();
     if(outDirOverride_ != "")
-         outDir = outDirOverride_;
+        outDir = outDirOverride_;
     
     std::string projDir1D = outDir + "/1dlhproj";
     std::string projDir2D = outDir + "/2dlhproj";
@@ -187,7 +179,9 @@ Fit(const std::string& mcmcConfigFile_,
       masses[it->first] = 1/sigmas[it->first]/1/sigmas[it->first];
 
   sampler.SetMasses(masses);
+
   MCMC mh(sampler);
+
   mh.SetSaveChain(true);
   mh.SetMaxIter(mcConfig.GetIterations());
   mh.SetBurnIn(mcConfig.GetBurnIn());
