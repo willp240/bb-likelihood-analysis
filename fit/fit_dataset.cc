@@ -182,7 +182,8 @@ Fit(const std::string& mcmcConfigFile_,
 
   MCMC mh(sampler);
 
-  mh.SetSaveChain(true);
+  bool saveChain = true;
+  mh.SetSaveChain(saveChain);
   mh.SetMaxIter(mcConfig.GetIterations());
   mh.SetBurnIn(mcConfig.GetBurnIn());
   mh.SetMinima(mcConfig.GetMinima());
@@ -219,23 +220,26 @@ Fit(const std::string& mcmcConfigFile_,
             << std::endl;
 
   MCMCSamples samples = mh.GetSamples();
-  TTree* outchain = samples.GetChain();
-  //Messy way to make output filename. OutDir is full path to output result directory. Using find_last_of / and stripping everything before it to get directory name (tempString2). Similarly find name of directory above (where pdfs and fake data is saved). Output filename is then aboveDirectory_resultDirectory.root, inside OutDir. Could surely do this in fewer lines, or just call it outputTree.root or something, but nice to have a more unique name 
-  std::string chainFileName = outDir;
-  std::string tempString1 = outDir;
-  std::string tempString2 = outDir;
-  size_t last_slash_idx = tempString1.find_last_of("/");
-  tempString2.erase(0, last_slash_idx+1 );
-  if (std::string::npos != last_slash_idx){
-    tempString1.erase(last_slash_idx,std::string::npos);
-    last_slash_idx = tempString1.find_last_of("/");
-    if (std::string::npos != last_slash_idx)
-      tempString1.erase(0, last_slash_idx );
-  }
 
-  chainFileName = outDir+tempString1+"_"+tempString2+".root";
-  TFile *f = new TFile(chainFileName.c_str(),"recreate");
-  outchain->Write();  
+  if(saveChain){
+    TTree* outchain = samples.GetChain();
+    //Messy way to make output filename. OutDir is full path to output result directory. Using find_last_of / and stripping everything before it to get directory name (tempString2). Similarly find name of directory above (where pdfs and fake data is saved). Output filename is then aboveDirectory_resultDirectory.root, inside OutDir. Could surely do this in fewer lines, or just call it outputTree.root or something, but nice to have a more unique name 
+    std::string chainFileName = outDir;
+    std::string tempString1 = outDir;
+    std::string tempString2 = outDir;
+    size_t last_slash_idx = tempString1.find_last_of("/");
+    tempString2.erase(0, last_slash_idx+1 );
+    if (std::string::npos != last_slash_idx){
+      tempString1.erase(last_slash_idx,std::string::npos);
+      last_slash_idx = tempString1.find_last_of("/");
+      if (std::string::npos != last_slash_idx)
+	tempString1.erase(0, last_slash_idx );
+    }
+    
+    chainFileName = outDir+tempString1+"_"+tempString2+".root";
+    TFile *f = new TFile(chainFileName.c_str(),"recreate");
+    outchain->Write();  
+  }
 
   // save the histograms
   typedef std::map<std::string, Histogram> HistMap;
