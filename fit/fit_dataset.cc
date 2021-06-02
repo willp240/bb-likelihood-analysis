@@ -225,7 +225,8 @@ Fit(const std::string& mcmcConfigFile_,
             << std::endl;
 
   MCMCSamples samples = mh.GetSamples();
-  TTree* outchain = mh.GetChain();
+  TTree* outchain = samples.GetChain();
+  //Messy way to make output filename. OutDir is full path to output result directory. Using find_last_of / and stripping everything before it to get directory name (tempString2). Similarly find name of directory above (where pdfs and fake data is saved). Output filename is then aboveDirectory_resultDirectory.root, inside OutDir. Could surely do this in fewer lines, or just call it outputTree.root or something, but nice to have a more unique name 
   std::string chainFileName = outDir;
   std::string tempString1 = outDir;
   std::string tempString2 = outDir;
@@ -263,10 +264,11 @@ Fit(const std::string& mcmcConfigFile_,
     IO::SaveHistogram(it->second, projDir2D + "/" + it->first + ".root");
   }
 
+  //Initialise postfit distributions to same axis as data
   BinnedED postfitDist;
-  AxisCollection axes = DistBuilder::BuildAxes(pConfig);
-  postfitDist = BinnedED("postfitDist", axes);
-  
+  postfitDist = dataDist;
+  postfitDist.Empty();
+
   // scale the distributions to the correct heights
   // they are named the same as their fit parameters
   std::cout << "Saving scaled histograms and data to \n\t"
@@ -280,6 +282,7 @@ Fit(const std::string& mcmcConfigFile_,
 	  dists[i].Scale(bestFit[name]);
 	  IO::SaveHistogram(dists[i].GetHistogram(), 
                             scaledDistDir + "/" + name + ".root");
+	  //sum all scaled distributions to get full postfit "dataset"
 	  postfitDist.Add(dists[i]);
       }
       IO::SaveHistogram(postfitDist.GetHistogram(),
@@ -297,6 +300,7 @@ Fit(const std::string& mcmcConfigFile_,
 	  dists[i] = dists[i].Marginalise(keepObs);
 	  IO::SaveHistogram(dists[i].GetHistogram(), 
 			    scaledDistDir + "/" + name + ".root");
+	  //sum all scaled distributions to get full postfit "dataset"
 	  postfitDist.Add(dists[i]);
       }
       IO::SaveHistogram(postfitDist.GetHistogram(),
