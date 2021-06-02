@@ -64,6 +64,7 @@ BuildAzimov(const std::string& evConfigFile_,
 
     // create the empty dist
     BinnedED azimov;
+    //vector of each interaction type distribution
     std::vector<BinnedED> indivAsmvDists;
     bool setAxes = false;
     if(!loadPDF_){
@@ -106,6 +107,7 @@ BuildAzimov(const std::string& evConfigFile_,
         if(dist.Integral() == dist.Integral()){
 	  if(!loadPDF_){
                 azimov.Add(dist);
+		//vector of each interaction type distribution
 		indivAsmvDists.push_back(dist);
 	  }
 	  std::cout << "Added " << dist.Integral() << " of event type " << it->first << std::endl;
@@ -137,6 +139,7 @@ BuildAzimov(const std::string& evConfigFile_,
             for(size_t is = 0; is < highDdist.GetNDims(); is++)
                 std::cout << highDdist.GetAxes().GetAxis(is).GetNBins() << std::endl;
             azimov.Add(highDdist);
+	    //vector of each interaction type distribution
 	    indivAsmvDists.push_back(dist);
         }
 
@@ -144,13 +147,16 @@ BuildAzimov(const std::string& evConfigFile_,
     }    
     
     IO::SaveHistogram(azimov.GetHistogram(), outName_ + ".h5");
+    //map of asimov rates for each interaction type
     std::map < std::string, double > asimovmap;
     if(azimov.GetNDims() < 3){
         IO::SaveHistogram(azimov.GetHistogram(), outName_ + ".root");
+	//and save the individual distribution for each interaction type
 	for(size_t i = 0; i < indivAsmvDists.size(); i++){
 	  std::string name = indivAsmvDists.at(i).GetName();
 	  IO::SaveHistogram(indivAsmvDists[i].GetHistogram(),
                             outName_ + "/" + name + ".root");
+	  //save rates to a map
 	  asimovmap[name] = indivAsmvDists[i].GetHistogram().Integral();
 	}
     }
@@ -160,14 +166,18 @@ BuildAzimov(const std::string& evConfigFile_,
       keepObs.push_back("energy");
       azimov = azimov.Marginalise(keepObs);
       IO::SaveHistogram(azimov.GetHistogram(), outName_ + ".root");
+      //and save the individual distribution for each interaction type
       for(size_t i = 0; i < indivAsmvDists.size(); i++){
 	indivAsmvDists[i] = indivAsmvDists[i].Marginalise(keepObs);
 	std::string name = indivAsmvDists.at(i).GetName();
 	IO::SaveHistogram(indivAsmvDists[i].GetHistogram(),
 			  outName_ + "/" + name + ".root");
+	//save rates to a map
 	asimovmap[name] = indivAsmvDists[i].GetHistogram().Integral();
       }
     }
+    
+    //save rates for each interaction type in a file, could be saved in full asimov file instead of new stand alone file?
     TFile *fRates = TFile::Open((outName_+"/asimovRates.root").c_str(), "RECREATE");
     fRates->WriteObject(&asimovmap, "AsimovRates");
     fRates->Close();
