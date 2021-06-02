@@ -16,14 +16,6 @@
 #include <AxisCollection.h>
 #include <IO.h>
 #include <TH1D.h>
-//#include <Minuit.h>
-
-#include <SystematicManager.h>
-#include <Scale.h>
-#include <Convolution.h>
-#include <Gaussian.h>
-#include <Event.h>
-#include <gsl/gsl_cdf.h>
 
 using namespace bbfit;
 
@@ -189,6 +181,7 @@ llh_scan(const std::string& mcmcConfigFile_,
     TH1D *hScan = new TH1D((name+"_full").c_str(), (name+"_full").c_str(), npoints, min/nom, max/nom);
     hScan->SetTitle(std::string(htitle + ";" + name + " (rel. to Asimov); -(ln L_{full})").c_str());
 
+    //Commented out bits here are in anticipation of splitting LLH calculation in oxo at some point. Could then see prior and sample contributions separately
     //TH1D *hScanSam = new TH1D((name+"_sam").c_str(), (name+"_sam").c_str(), npoints, min/nom, max/nom);
     //hScanSam->SetTitle(std::string(std::string("2LLH_sam, ") + name + ";" + name + "; -2(ln L_{sample})").c_str());
     //TH1D *hScanPen = new TH1D((name+"_pen").c_str(), (name+"_pen").c_str(), npoints, min/nom, max/nom);
