@@ -1,5 +1,10 @@
 // Makes prefit-postfit comparison plots and correlations
-//
+// Loops over each parameter and plots a 1D distribution of
+// parameter value at each step. Calculates mean and error in 
+// 4 different ways, and also plots the asimov value. Then 
+// makes a plot of means and errors for all parameters. Also
+// the pre and postfit MC distributions, projections of these,
+// and ratios between them
 // ./MakePlots will tell you how
 #include <iostream>
 #include <sstream>
@@ -65,6 +70,7 @@ void GetParLimits(std::string paramName, double &central, double &prior, double 
 
 //Load up values from input files
 void LoadInputVals();
+//a nice palette for ratio plots
 void BlueRedPalette();
 
 //Make 1D prefit/postfit comparisons
@@ -480,7 +486,7 @@ void MakePlots(std::string inputFile, bool correlations) {
     paramPlot_HPD->SetBinError(i+1, error);  
 
     paramPlot_HLLH->SetBinContent(i+1, (*HLLH_mean_vec)(i));
-    //This is a bit of a fudge. Don't have error for HLLH as it's just a parameter value at a single step. But the if the error is set to 0 the plot doesn't show up (not sure why). Could set to a small but finite number, say 0.01, as we plot over log y scale the line draws thicker for lower parameter values. So to show a 0 error (to the eye) and have constant line size, we set the error to be a very small constant fraction of the bin content
+    //This is a bit of a fudge. Don't have error for HLLH as it's just a parameter value at a single step. But if the error is set to 0 the plot doesn't show up (not sure why, prolly a root thing). Could set to a small but finite number, say 0.01, but as we plot over log y scale the line draws thicker for lower parameter values. So to show a 0 error (to the eye) and have constant line size, we set the error to be a very small constant fraction of the bin content
     paramPlot_HLLH->SetBinError(i+1,0.01*paramPlot_HLLH->GetBinContent(i+1) );
   }
 
