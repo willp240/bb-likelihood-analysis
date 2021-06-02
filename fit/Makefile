@@ -4,7 +4,7 @@ G4_FLAGS=`geant4-config --cflags --libs`
 
 GSL_FLAGS=-lgsl
 
-OXSX_ROOT = /home/parkerw/Software/oxsx2
+OXSX_ROOT = /home/kroupova/oxsx
 OXSX_INC=$(OXSX_ROOT)/include
 OXSX_LIB_DIR=$(OXSX_ROOT)/build 
 OXSX_LIB_NAME=oxsx
