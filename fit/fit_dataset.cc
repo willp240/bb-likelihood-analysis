@@ -6,6 +6,8 @@
 #include <CutConfigLoader.hh>
 #include <FitConfigLoader.hh>
 #include <FitConfig.hh>
+#include <SystConfigLoader.hh>
+#include <SystConfig.hh>
 #include <CutFactory.hh>
 #include <CutCollection.h>
 #include <fstream>
@@ -18,6 +20,9 @@
 #include <MCMC.h>
 #include <HamiltonianSampler.h>
 #include <MetropolisSampler.h>
+#include <Minuit.h>
+
+#include <Scale.h>
 
 using namespace bbfit;
 
@@ -26,6 +31,7 @@ void
 Fit(const std::string& mcmcConfigFile_, 
     const std::string& distConfigFile_,
     const std::string& cutConfigFile_, 
+    const std::string& systConfigFile_,
     const std::string& dataPath_,
     const std::string& dims_,
     const std::string& outDirOverride_){
@@ -87,7 +93,10 @@ Fit(const std::string& mcmcConfigFile_,
     cutCol.AddCut(*cut);
     delete cut; // cut col takes its own copy
   }
-  
+
+  // Load up the systematics
+  SystConfigLoader systLoader(systConfigFile_);
+  SystConfig systConfig = systLoader.LoadActive();
 
   // Load up the dists
   DistConfigLoader dLoader(distConfigFile_);
@@ -153,14 +162,60 @@ Fit(const std::string& mcmcConfigFile_,
       dataDist = dataDist.Marginalise(keepObs);
   }
 
-// now build the likelihood
+  AxisCollection systAxes = DistBuilder::BuildAxes(pConfig);
+  std::vector<std::string> dataObs = pConfig.GetBranchNames();
+  ObsSet dataObsSet(dataObs);
+
+  ParameterDict syst_nom =    systConfig.GetNominal();
+  ParameterDict syst_maxima = systConfig.GetMaxima();
+  ParameterDict syst_minima = systConfig.GetMinima();
+  ParameterDict syst_mass =   systConfig.GetMass();
+  ParameterDict syst_nbins =  systConfig.GetNBins();
+  std::map<std::string, std::string> syst_type = systConfig.GetType();
+  std::map<std::string, std::string> syst_obs =  systConfig.GetObs();
+
+  std::vector <Systematic*> syst_vec;
+
+  //Loop over systematics and declare each type. Must be a better way to do this but
+  // it will do for now
+  for(ParameterDict::iterator it = syst_nom.begin(); it != syst_nom.end();
+      ++it) {
+    if(syst_type[it->first] == "scale"){
+      std::vector<std::string> Obs;
+      Obs.push_back(syst_obs[it->first]);
+      ObsSet obsSet(Obs);
+
+      Scale* scale = new Scale("scale");
+      scale->RenameParameter("scaleFactor",it->first);
+      scale->SetScaleFactor( it->second );
+      scale->SetAxes(systAxes);
+      scale->SetTransformationObs(obsSet);
+      scale->SetDistributionObs(dataObsSet);
+      scale->Construct();
+      syst_vec.push_back(scale);
+    }
+    else if(syst_type[it->first] == "convolution"){
+      //need to implement for conv still
+    }
+  }
+
+  ParameterDict minima = mcConfig.GetMinima();
+  ParameterDict maxima = mcConfig.GetMaxima();
+
+  // now build the likelihood
   BinnedNLLH lh;
+  lh.SetBufferAsOverflow(true);
+  lh.SetBuffer("energy",12,12);
   lh.AddPdfs(dists);
   lh.SetCuts(cutCol);
   lh.SetDataDist(dataDist);
+  for (int i_syst = 0; i_syst<syst_vec.size(); i_syst++) {
+    lh.AddSystematic(syst_vec.at(i_syst));
+  }
 
   ParameterDict constrMeans  = mcConfig.GetConstrMeans();
   ParameterDict constrSigmas = mcConfig.GetConstrSigmas();
+
   for(ParameterDict::iterator it = constrMeans.begin(); it != constrMeans.end();
       ++it)
       lh.SetConstraint(it->first, it->second, constrSigmas.at(it->first));
@@ -170,14 +225,21 @@ Fit(const std::string& mcmcConfigFile_,
   ParameterDict sigmas = mcConfig.GetSigmas();
 
   HamiltonianSampler<BinnedNLLH> sampler(lh, mcConfig.GetEpsilon(), 
-                                         mcConfig.GetNSteps());
-  sampler.SetMinima(mcConfig.GetMinima());
-  sampler.SetMaxima(mcConfig.GetMaxima());
+                                       mcConfig.GetNSteps());
+  
   ParameterDict masses;
+  
+  for(ParameterDict::iterator it = sigmas.begin(); it != sigmas.end(); ++it){
+      masses[it->first] = 10/sigmas[it->first]/1/sigmas[it->first];
 
-  for(ParameterDict::iterator it = sigmas.begin(); it != sigmas.end(); ++it)
-      masses[it->first] = 1/sigmas[it->first]/1/sigmas[it->first];
+  for(ParameterDict::iterator it = syst_mass.begin(); it != syst_mass.end(); ++it){
+    masses[it->first] = syst_mass[it->first];
+    minima[it->first] = syst_minima[it->first];
+    maxima[it->first] = syst_maxima[it->first];
+  }
 
+  sampler.SetMinima(minima);
+  sampler.SetMaxima(maxima);
   sampler.SetMasses(masses);
 
   MCMC mh(sampler);
@@ -186,8 +248,8 @@ Fit(const std::string& mcmcConfigFile_,
   mh.SetSaveChain(saveChain);
   mh.SetMaxIter(mcConfig.GetIterations());
   mh.SetBurnIn(mcConfig.GetBurnIn());
-  mh.SetMinima(mcConfig.GetMinima());
-  mh.SetMaxima(mcConfig.GetMaxima());
+  mh.SetMinima(minima);
+  mh.SetMaxima(maxima);
   
   // we're going to minmise not maximise -log(lh) and the 
   // mc chain needs to know that the test stat is logged 
@@ -205,14 +267,20 @@ Fit(const std::string& mcmcConfigFile_,
 			   mcConfig.GetNBins()[*it]		   
 			   )
 		   );
+    std::cout << "added " << *it << std::endl;
   }
-
+  for(ParameterDict::iterator it = syst_nom.begin(); it != syst_nom.end(); ++it){
+    std::cout << minima[it->first] << " " << maxima[it->first] << " " << syst_nbins[it->first] << std::endl;
+    lhAxes.AddAxis(BinAxis(it->first, minima[it->first], maxima[it->first], syst_nbins[it->first]));
+}
+  std::cout << "7" << std::endl;  
   mh.SetHistogramAxes(lhAxes);
+
 
   // go
   const FitResult& res = mh.Optimise(&lh);
   lh.SetParameters(res.GetBestFit());
-
+  
   // Now save the results
   res.SaveAs(outDir + "/fit_result.txt");
 
@@ -335,25 +403,26 @@ Fit(const std::string& mcmcConfigFile_,
      << "\n\n\n" << "data set fit : " << dataPath_
      << "\n\n\n" << if_a.rdbuf()
      << "\n\n\n" << if_b.rdbuf();
-  
+
 }
 
 int main(int argc, char *argv[]){
-  if (argc != 6 && argc != 7){
-    std::cout << "\nUsage: fit_dataset <fit_config_file> <dist_config_file> <cut_config_file> <data_to_fit> <4d,3d or 2d> <(opt) outdir_override>" << std::endl;
-      return 1;
+  if (argc != 7 && argc != 8){
+    std::cout << "\nUsage: fit_dataset <fit_config_file> <dist_config_file> <cut_config_file> <syst_config_file> <data_to_fit> <4d,3d or 2d> <(opt) outdir_override>" << std::endl;
+    return 1;
   }
 
   std::string fitConfigFile(argv[1]);
   std::string pdfPath(argv[2]);
   std::string cutConfigFile(argv[3]);
-  std::string dataPath(argv[4]);
-  std::string dims(argv[5]);
+  std::string systConfigFile(argv[4]);
+  std::string dataPath(argv[5]);
+  std::string dims(argv[6]);
   std::string outDirOverride;
-  if(argc == 7)
-    outDirOverride = std::string(argv[6]);
+  if(argc == 8)
+    outDirOverride = std::string(argv[7]);
 
-  Fit(fitConfigFile, pdfPath, cutConfigFile, dataPath, dims, outDirOverride);
+  Fit(fitConfigFile, pdfPath, cutConfigFile, systConfigFile, dataPath, dims, outDirOverride);
 
   return 0;
 }
