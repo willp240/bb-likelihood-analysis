@@ -17,6 +17,8 @@
 #include <IO.h>
 #include <TH1D.h>
 
+#include <Scale.h>
+
 using namespace bbfit;
 
 void
@@ -126,28 +128,55 @@ llh_scan(const std::string& mcmcConfigFile_,
       dataDist = dataDist.Marginalise(keepObs);
   }
 
+  AxisCollection scaleAxes;
+  scaleAxes.AddAxis(BinAxis("energy", 1.8, 3, 48));
+  scaleAxes.AddAxis(BinAxis("r", 0, 0.77, 6));
+  std::vector<std::string> Obs;
+  Obs.push_back("energy");
+  ObsSet obsSet(Obs);
+
+  std::vector<std::string> dataObs;
+  dataObs.push_back("energy");
+  dataObs.push_back("r");
+  ObsSet dataObsSet(dataObs);
+
+  // Setting up artificial scale with a scaleFactor = 1.5.
+  Scale* scale = new Scale("scale");
+  scale->RenameParameter("scaleFactor","energy_scale");
+  scale->SetScaleFactor(1.0);
+  scale->SetAxes(scaleAxes);
+  scale->SetTransformationObs(obsSet);
+  scale->SetDistributionObs(dataObsSet);
+  scale->Construct();
+
   // now build the likelihood
   BinnedNLLH lh;
+  lh.SetBufferAsOverflow(true);
+  lh.SetBuffer("energy",12,12);
   lh.AddPdfs(dists);
   lh.SetCuts(cutCol);
   lh.SetDataDist(dataDist);
+  lh.AddSystematic(scale);
 
   ParameterDict constrMeans  = mcConfig.GetConstrMeans();
   ParameterDict constrSigmas = mcConfig.GetConstrSigmas();
   ParameterDict mins = mcConfig.GetMinima();
   ParameterDict maxs = mcConfig.GetMaxima();
- 
+  mins["energy_scale"] = 0.90;
+  maxs["energy_scale"] = 1.12; 
+
+
   for(ParameterDict::iterator it = constrMeans.begin(); it != constrMeans.end();
       ++it)
       lh.SetConstraint(it->first, it->second, constrSigmas.at(it->first));
-
-
+  
   //Load in asimov rates for central value of each parameter
   TFile *asmvRatesFile = new TFile(asmvRatesPath.c_str(), "OPEN");
   asmvRatesFile->cd();
   std::map<std::string, double>* tempMap;
   asmvRatesFile->GetObject("AsimovRates",tempMap);
   ParameterDict asimovRates = (ParameterDict)*tempMap;
+  asimovRates["energy_scale"] = 1.0;
   lh.RegisterFitComponents();
 
   //number of points in scan
@@ -156,13 +185,14 @@ llh_scan(const std::string& mcmcConfigFile_,
   
   ParameterDict parameterValues;// = asimovRates;
 
-  for(ParameterDict::iterator it = mins.begin(); it != mins.end(); ++it)
+  for(ParameterDict::iterator it = mins.begin(); it != mins.end(); ++it){
     parameterValues[it->first] = asimovRates[it->first];
+  }
   for(ParameterDict::iterator it = constrMeans.begin(); it != constrMeans.end();
       ++it)
     parameterValues[it->first] = constrMeans[it->first];
   lh.SetParameters(parameterValues);
-
+  
   // Outfile
   std::string outFileName = outDir_ + "/llh_scan.root";
   TFile *outFile = new TFile(outFileName.c_str(),"recreate");
@@ -175,7 +205,7 @@ llh_scan(const std::string& mcmcConfigFile_,
     double nom = asimovRates[name];
     double min = mins[name];
     double max = maxs[name];
-    std::cout << nom << " " << min << " " << max << std::endl;
+
     //Make histos
     TString htitle = Form("%s, Asimov Rate: %f", name.c_str(), nom);
     TH1D *hScan = new TH1D((name+"_full").c_str(), (name+"_full").c_str(), npoints, min/nom, max/nom);
@@ -188,20 +218,22 @@ llh_scan(const std::string& mcmcConfigFile_,
     //hScanPen->SetTitle(std::string(std::string("2LLH_pen, ") + name + ";" + name + "; -2(ln L_{penalty})").c_str());
 
     //loop from min to max in steps of 150 (might want to do smaller range)
-    for(int i=0; i<npoints; i++){
+    for(int i=0; i<1; i++){
 
       if (i % countwidth == 0) {
 	std::cout << i << "/" << npoints << " (" << double(i)/double(npoints) * 100 << "%)" << std::endl;
       }
 
       //Set Parameters
-      double parval = hScan->GetBinCenter(i+1)*nom;
+      double parval = 1.05;//hScan->GetBinCenter(i+1)*nom;
       double tempval = parameterValues[name];
       parameterValues[name] = parval;
+
       lh.SetParameters(parameterValues);
-      
+      lh.Init();
       //Eval LLH (later do sample and penalty)
       double LLH = lh.Evaluate();
+
       //SetBinContents
       hScan->SetBinContent(i+1, LLH);
       //hScanSam->SetBinContent(i+1, LLH);
