@@ -267,13 +267,12 @@ Fit(const std::string& mcmcConfigFile_,
 			   mcConfig.GetNBins()[*it]		   
 			   )
 		   );
-    std::cout << "added " << *it << std::endl;
   }
   for(ParameterDict::iterator it = syst_nom.begin(); it != syst_nom.end(); ++it){
     std::cout << minima[it->first] << " " << maxima[it->first] << " " << syst_nbins[it->first] << std::endl;
     lhAxes.AddAxis(BinAxis(it->first, minima[it->first], maxima[it->first], syst_nbins[it->first]));
 }
-  std::cout << "7" << std::endl;  
+
   mh.SetHistogramAxes(lhAxes);
 
 
