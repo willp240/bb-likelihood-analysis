@@ -249,9 +249,9 @@ void MakePlots(std::string inputFile, bool correlations) {
     // Get the maximum and minimum for the parameter
     chain->Draw(bnames[i],stepcut.c_str());
     TH1 *htemp = (TH1*)gPad->GetPrimitive("htemp");
-    double maximum = 1.1*htemp->GetMaximumStored();
-    double minimum = 0.9*htemp->GetMinimumStored();
-    
+    double maximum = htemp->GetXaxis()->GetBinUpEdge(htemp->GetXaxis()->GetNbins());
+    double minimum = htemp->GetXaxis()->GetBinLowEdge(1);
+
     // This holds the posterior density
     TH1D *hpost = new TH1D(bnames[i], bnames[i], nbins, minimum, maximum);
     hpost->SetMinimum(0);
@@ -261,7 +261,7 @@ void MakePlots(std::string inputFile, bool correlations) {
     
     // Project bnames[i] onto hpost, applying stepcut
     chain->Project(bnames[i], bnames[i], stepcut.c_str());
-    
+
     // Apply one smoothing
     hpost->Smooth();
     
@@ -275,7 +275,7 @@ void MakePlots(std::string inputFile, bool correlations) {
     double maxllh = GetMaxLLHPar(chain, maxLLHStep, bnames[i].Data() ); 
     double maxllh_norm;
 
-    std::cout << i << ": " << mean << " +/- " << rms << " (" << peakval << "+/-" << sigma_hpd << " + " << sigma_p << " - " << sigma_m << ")" << " (" << gauss_mean << "+/-" << gauss_rms << ")" << std::endl;
+    std::cout << i << ": " << mean << " +/- " << rms << " (" << peakval << "+/-" << sigma_hpd << " + " << sigma_p << " - " << sigma_m << ")" << " (" << gauss_mean << "+/-" << gauss_rms << ") " << std::endl;
     
     TLine *hpd = new TLine(peakval, hpost->GetMinimum(), peakval, hpost->GetMaximum());
     hpd->SetLineColor(kRed);
@@ -384,8 +384,8 @@ void MakePlots(std::string inputFile, bool correlations) {
 	std::cout << drawcmd << std::endl;
 	chain->Draw(bnames[j],stepcut.c_str());
 	TH1 *htemp2 = (TH1*)gPad->GetPrimitive("htemp");
-	double maximum2 = 1.1*htemp2->GetMaximumStored();
-	double minimum2 = 0.9*htemp2->GetMinimumStored();
+	double maximum2 = htemp2->GetXaxis()->GetBinUpEdge(htemp2->GetXaxis()->GetNbins());
+	double minimum2 = htemp2->GetXaxis()->GetBinLowEdge(1);
 		
 	// TH2F to hold the correlation 
 	TH2F *hpost2 = new TH2F(drawcmd, drawcmd, hpost->GetNbinsX(), hpost->GetBinLowEdge(0), hpost->GetBinLowEdge(hpost->GetNbinsX()+1), nbins, minimum2, maximum2);
@@ -509,6 +509,7 @@ void MakePlots(std::string inputFile, bool correlations) {
   file->cd();
   prefit->GetYaxis()->SetRangeUser(0.1, 10000.0);
   gPad->SetLogy();
+  //prefit->GetYaxis()->SetRangeUser(0.001, 2.0);
   prefit->GetXaxis()->SetTitle("");
   prefit->GetXaxis()->SetRangeUser(0, npar);
   prefit->GetXaxis()->LabelsOption("v");
@@ -829,7 +830,6 @@ void LoadInputVals( ) {
   mins = mcConfig.GetMinima();
   maxs = mcConfig.GetMaxima();
 
-
   ParMap tempMeans;
   ParMap tempSigmas;
   ParMap tempMins;
@@ -854,6 +854,9 @@ void LoadInputVals( ) {
   mins = tempMins;
   maxs = tempMaxs;
   asimovRates = tempRates;
+
+  // Hack this for now. Once systetatics are in config can do it properly here
+  asimovRates["energy_scale"] = 1.05;
 }
 
 // **************************
@@ -861,14 +864,16 @@ void LoadInputVals( ) {
 void GetParLimits(std::string paramName, double &central, double &prior, double &down_error, double &up_error) {
   // **************************
 
-  central = 0.0;
+  central = 1.0;////default to one, so for anything not set in asimov rates file it's not 0. e.g for a systematic not in asimov rates
   double error = 0.0;
   double sigmas = 1.0;
-
-  central = asimovRates[paramName];
-  prior = constrMeans[paramName];
-  error = constrSigmas[paramName];
-
+  
+  if ( asimovRates.find(paramName) != asimovRates.end() ) {
+    central = asimovRates[paramName];
+    prior = constrMeans[paramName];
+    error = constrSigmas[paramName];
+  }
+  
   // We might be passed the valid range of parameter
   // Do a check to see if this is true
   if (central - error <  mins[paramName]) {
@@ -893,7 +898,7 @@ TH1D* MakePrefit(int nPar) {
   TH1D *PreFitPlot = new TH1D("Prefit", "Prefit", nPar, 0, nPar);
   for (int i = 0; i < PreFitPlot->GetNbinsX() + 1; ++i) {
     PreFitPlot->SetBinContent(i+1, 0);
-    PreFitPlot->SetBinError(i+1, 0);
+    PreFitPlot->SetBinError(i+1, 0.01);//If this is 0 root might not plot it
   }
 
   int count = 0;
