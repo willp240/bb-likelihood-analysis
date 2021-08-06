@@ -15,6 +15,8 @@
 #include <CutLog.h>
 #include <string>
 #include <sys/stat.h>
+#include <Scale.h>
+
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -76,6 +78,27 @@ BuildAzimov(const std::string& evConfigFile_,
     std::vector<std::string> names;
     std::vector<double> rates;
 
+    AxisCollection scaleAxes;
+    scaleAxes.AddAxis(BinAxis("energy", 1.8, 3, 48));
+    scaleAxes.AddAxis(BinAxis("r", 0, 0.77, 6));
+    std::vector<std::string> Obs;
+    Obs.push_back("energy");
+    ObsSet obsSet(Obs);
+
+    std::vector<std::string> dataObs;
+    dataObs.push_back("energy");
+    dataObs.push_back("r");
+    ObsSet dataObsSet(dataObs);
+
+    // Setting up artificial scale with a scaleFactor = 1.5.
+    Scale* scale = new Scale("scale");
+    scale->RenameParameter("scaleFactor","energy_scale");
+    scale->SetScaleFactor(1.00);
+    scale->SetAxes(scaleAxes);
+    scale->SetTransformationObs(obsSet);
+    scale->SetDistributionObs(dataObsSet);
+    scale->Construct();
+
     // now build each of the PDFs, scale them to the correct size and add it to the azimov
     for(EvMap::iterator it = toGet.begin(); it != toGet.end(); ++it){
         DataSet* ds = new ROOTNtuple(it->second.GetSplitFakePath(), "pruned");
@@ -94,7 +117,10 @@ BuildAzimov(const std::string& evConfigFile_,
             continue;
         std::cout << "Integral before scale = " << dist.Integral() << std::endl;
         std::cout << "Efficiency  = " << dist.Integral()/nGen << std::endl;
-        
+	double distInt = dist.Integral();
+	dist = scale->operator()(dist);
+	dist.Scale(distInt);
+
 	double rate = it->second.GetRate();
 	if (it->second.GetLoadingScaling() == "true"){
 	  std::cout<< "Scaling rate by "<<  loadingScale_ << " due to higher loading" <<std::endl;
@@ -145,7 +171,10 @@ BuildAzimov(const std::string& evConfigFile_,
 
         delete ds;
     }    
+
     
+    //    azimov = scale->operator()(azimov);
+
     IO::SaveHistogram(azimov.GetHistogram(), outName_ + ".h5");
     //map of asimov rates for each interaction type
     std::map < std::string, double > asimovmap;
