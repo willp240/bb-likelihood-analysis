@@ -218,7 +218,7 @@ Fit(const std::string& mcmcConfigFile_,
 
   for(ParameterDict::iterator it = constrMeans.begin(); it != constrMeans.end();
       ++it)
-      lh.SetConstraint(it->first, it->second, constrSigmas.at(it->first));
+    lh.SetConstraint(it->first, it->second, constrSigmas.at(it->first));
 
   // and now the optimiser
   // Create something to do hamiltonian sampling
@@ -229,7 +229,7 @@ Fit(const std::string& mcmcConfigFile_,
   
   ParameterDict masses;
   
-  for(ParameterDict::iterator it = sigmas.begin(); it != sigmas.end(); ++it){
+  for(ParameterDict::iterator it = sigmas.begin(); it != sigmas.end(); ++it)
       masses[it->first] = 10/sigmas[it->first]/1/sigmas[it->first];
 
   for(ParameterDict::iterator it = syst_mass.begin(); it != syst_mass.end(); ++it){
@@ -271,8 +271,8 @@ Fit(const std::string& mcmcConfigFile_,
   for(ParameterDict::iterator it = syst_nom.begin(); it != syst_nom.end(); ++it){
     std::cout << minima[it->first] << " " << maxima[it->first] << " " << syst_nbins[it->first] << std::endl;
     lhAxes.AddAxis(BinAxis(it->first, minima[it->first], maxima[it->first], syst_nbins[it->first]));
-}
-
+  }
+  
   mh.SetHistogramAxes(lhAxes);
 
 
@@ -422,6 +422,7 @@ int main(int argc, char *argv[]){
     outDirOverride = std::string(argv[7]);
 
   Fit(fitConfigFile, pdfPath, cutConfigFile, systConfigFile, dataPath, dims, outDirOverride);
-
+  
   return 0;
 }
+ 
