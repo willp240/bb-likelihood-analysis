@@ -27,6 +27,11 @@ SystConfigLoader::LoadActive() const{
   double      constrMean;
   double      constrSigma;
   int         nbins;
+  double      std_nom;
+  double      std_min;
+  double      std_max;
+  double      std_mass;
+  int         std_nbins;
   std::string obs;
   std::string type;
 
@@ -45,16 +50,32 @@ SystConfigLoader::LoadActive() const{
     ConfigLoader::Load(name, "obs", obs);
     ConfigLoader::Load(name, "type", type);
 
-    try{
-      ConfigLoader::Load(name, "constraint_mean", constrMean);
-      ConfigLoader::Load(name, "constraint_sigma", constrSigma);
-      ret.AddParameter(name, nom, min, max, mass, nbins, constrMean, constrSigma, obs, type);
+    if(type!="convolution"){ 
+      try{
+	ConfigLoader::Load(name, "constraint_mean", constrMean);
+	ConfigLoader::Load(name, "constraint_sigma", constrSigma);
+	ret.AddParameter(name, nom, min, max, mass, nbins, constrMean, constrSigma, obs, type);
+      }
+      catch(const ConfigFieldMissing& e_){
+	ret.AddParameter(name, nom, min, max, mass, nbins, obs, type);
+      }
     }
-    catch(const ConfigFieldMissing& e_){
-      ret.AddParameter(name, nom, min, max, mass, nbins, obs, type);
+    else{
+      ConfigLoader::Load(name, "nominal_stddev", std_nom);
+      ConfigLoader::Load(name, "minima_stddev", std_min);
+      ConfigLoader::Load(name, "maxima_stddev", std_max);
+      ConfigLoader::Load(name, "mass_stddev", std_mass);
+      ConfigLoader::Load(name, "nbins_stddev", std_nbins);
+      try{
+	ConfigLoader::Load(name, "constraint_mean", constrMean);
+	ConfigLoader::Load(name, "constraint_sigma", constrSigma);
+	ret.AddParameter(name, nom, min, max, mass, nbins, constrMean, constrSigma, obs, type, std_nom, std_min, std_max, std_mass, std_nbins);
+      }
+      catch(const ConfigFieldMissing& e_){
+        ret.AddParameter(name, nom, min, max, mass, nbins, obs, type, std_nom, std_min, std_max, std_mass, std_nbins);
+      }
     }
   }
-
   return ret;
 }
 

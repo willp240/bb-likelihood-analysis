@@ -26,7 +26,7 @@ all: bin/make_pdfs bin/make_trees bin/split_data bin/fit_dataset bin/up_count_li
 
 bin/fit_dataset: fit_dataset.cc $(LIB)
 	mkdir -p bin
-	$(CXX)  fit_dataset.cc -I$(INC_DIR) -I$(OXSX_INC) -w -L$(LIB_DIR) -L$(OXSX_LIB_DIR) -l$(LIB_NAME) -l$(OXSX_LIB_NAME)  $(ROOT_FLAGS) $(G4_FLAGS) $(H5_LIBS) -larmadillo -lMinuit2 -o $@
+	$(CXX)  fit_dataset.cc -I$(INC_DIR) -I$(OXSX_INC) -w -L$(LIB_DIR) -L$(OXSX_LIB_DIR) -l$(LIB_NAME) -l$(OXSX_LIB_NAME)  $(ROOT_FLAGS) $(G4_FLAGS) $(H5_LIBS) ${GSL_FLAGS} -larmadillo -lMinuit2 -o $@
 
 bin/MakePlots: MakePlots.cc $(LIB)
 	mkdir -p bin

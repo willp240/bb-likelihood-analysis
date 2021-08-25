@@ -23,6 +23,8 @@
 #include <Minuit.h>
 
 #include <Scale.h>
+#include <Convolution.h>
+#include <Gaussian.h>
 
 using namespace bbfit;
 
@@ -144,7 +146,7 @@ Fit(const std::string& mcmcConfigFile_,
 
   //marginalise over PSD for 3D fitting
   if(dims_=="3d"){
-      std::cout<< "Marginilising for 3d" << std::endl;
+       std::cout<< "Marginilising for 3d" << std::endl;
       std::vector<std::string> keepObs;
       keepObs.push_back("energy");
       keepObs.push_back("r");
@@ -178,16 +180,15 @@ Fit(const std::string& mcmcConfigFile_,
 
   //Loop over systematics and declare each type. Must be a better way to do this but
   // it will do for now
-  for(ParameterDict::iterator it = syst_nom.begin(); it != syst_nom.end();
+  for(std::map<std::string, std::string>::iterator it = syst_type.begin(); it != syst_type.end();
       ++it) {
+    std::vector<std::string> Obs;
+    Obs.push_back(syst_obs[it->first]);
+    ObsSet obsSet(Obs);
     if(syst_type[it->first] == "scale"){
-      std::vector<std::string> Obs;
-      Obs.push_back(syst_obs[it->first]);
-      ObsSet obsSet(Obs);
-
       Scale* scale = new Scale("scale");
       scale->RenameParameter("scaleFactor",it->first);
-      scale->SetScaleFactor( it->second );
+      scale->SetScaleFactor( syst_nom[it->first] );
       scale->SetAxes(systAxes);
       scale->SetTransformationObs(obsSet);
       scale->SetDistributionObs(dataObsSet);
@@ -196,6 +197,16 @@ Fit(const std::string& mcmcConfigFile_,
     }
     else if(syst_type[it->first] == "convolution"){
       //need to implement for conv still
+      Convolution* conv = new Convolution("conv");
+      Gaussian* gaus = new Gaussian(syst_nom[it->first],syst_nom[it->first+"_stddevs"],it->first);
+      gaus->RenameParameter("means_0", it->first);
+      gaus->RenameParameter("stddevs_0", it->first+"_stddevs");
+      conv->SetFunction(gaus);
+      conv->SetAxes(systAxes);
+      conv->SetTransformationObs(obsSet);
+      conv->SetDistributionObs(dataObsSet);
+      conv->Construct();
+      syst_vec.push_back(conv);
     }
   }
 
@@ -215,6 +226,8 @@ Fit(const std::string& mcmcConfigFile_,
 
   ParameterDict constrMeans  = mcConfig.GetConstrMeans();
   ParameterDict constrSigmas = mcConfig.GetConstrSigmas();
+
+  //to do: add systematic constraints
 
   for(ParameterDict::iterator it = constrMeans.begin(); it != constrMeans.end();
       ++it)

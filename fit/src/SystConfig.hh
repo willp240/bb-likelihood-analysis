@@ -22,6 +22,8 @@ public:
 
   void AddParameter(const std::string& name_, double nom_, double min_, double max_, double mass_, int nbins_, const std::string& obs_, const std::string& type_);
   void AddParameter(const std::string& name_, double nom_, double min_, double max_, double mass, int nbins_, double constrMean_, double constrSigma_, const std::string& obs_, const std::string& type_);
+  void AddParameter(const std::string& name_, double nom_, double min_, double max_, double mass_, int nbins_, const std::string& obs_, const std::string& type_, double nom_stddev_, double min_stddev_, double max_stddev_, double mass_stddev_, int nbins_stddev_);
+  void AddParameter(const std::string& name_, double nom_, double min_, double max_, double mass, int nbins_, double constrMean_, double constrSigma_, const std::string& obs_, const std::string& type_, double nom_stddev_, double min_stddev_, double max_stddev_, double mass_stddev_, int nbins_stddev_);
 
 private:
   std::string fName;
@@ -32,6 +34,11 @@ private:
   ParameterDict fConstrMean;
   ParameterDict fConstrSigma;
   ParameterDict fNBins;
+  ParameterDict fNominalStdDev;
+  ParameterDict fMinimaStdDev;
+  ParameterDict fMaximaStdDev;
+  ParameterDict fMassStdDev;
+  ParameterDict fNBinsStdDev;
   std::map<std::string, std::string> fType;
   std::map<std::string, std::string> fObs;
 };
