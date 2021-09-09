@@ -8,6 +8,7 @@
 #include <FitConfig.hh>
 #include <SystConfigLoader.hh>
 #include <SystConfig.hh>
+#include <SystFactory.hh>
 #include <CutFactory.hh>
 #include <CutCollection.h>
 #include <fstream>
@@ -21,12 +22,6 @@
 #include <HamiltonianSampler.h>
 #include <MetropolisSampler.h>
 #include <Minuit.h>
-
-#include <Scale.h>
-#include <Shift.h>
-#include <Convolution.h>
-#include <GaussianERes.h>
-
 
 using namespace bbfit;
 
@@ -178,12 +173,6 @@ Fit(const std::string& mcmcConfigFile_,
   std::map<std::string, std::string> syst_type = systConfig.GetType();
   std::map<std::string, std::string> syst_obs =  systConfig.GetObs();
 
-  syst_nom.erase("energy_conv");
-  syst_maxima.erase("energy_conv");
-  syst_minima.erase("energy_conv");
-  syst_mass.erase("energy_conv");
-  syst_nbins.erase("energy_conv");
-
   std::vector <Systematic*> syst_vec;
  
   //Loop over systematics and declare each type. Must be a better way to do this but
@@ -193,40 +182,17 @@ Fit(const std::string& mcmcConfigFile_,
     std::vector<std::string> Obs;
     Obs.push_back(syst_obs[it->first]);
     ObsSet obsSet(Obs);
-    if(syst_type[it->first] == "scale"){
-      Scale* scale = new Scale("scale");
-      scale->RenameParameter("scaleFactor",it->first);
-      scale->SetScaleFactor( syst_nom[it->first] );
-      scale->SetAxes(systAxes);
-      scale->SetTransformationObs(obsSet);
-      scale->SetDistributionObs(dataObsSet);
-      scale->Construct();
-      syst_vec.push_back(scale);
-    }
-    else if(syst_type[it->first] == "convolution"){
-      //need to implement for conv still
-      Convolution* conv = new Convolution("conv");
-      GaussianERes* gaus = new GaussianERes(syst_nom[it->first+"_stddevs"],it->first);
-      //gaus->RenameParameter("means_0", it->first);
-      gaus->RenameParameter("eres_0", it->first+"_stddevs");
-      conv->SetFunction(gaus);
-      conv->SetAxes(systAxes);
-      conv->SetTransformationObs(obsSet);
-      conv->SetDistributionObs(dataObsSet);
-      conv->Construct();
-      syst_vec.push_back(conv);
-    }
-    if(syst_type[it->first] == "shift"){
-      Shift* shift = new Shift("shift");
-      shift->RenameParameter("shift",it->first);
-      shift->SetShift( syst_nom[it->first] );
-      shift->SetAxes(systAxes);
-      shift->SetTransformationObs(obsSet);
-      shift->SetDistributionObs(dataObsSet);
-      shift->Construct();
-      syst_vec.push_back(shift);
-    }
-    }
+
+    double stddev_nom = 0;
+    if(syst_type[it->first] == "conv")
+      stddev_nom = syst_nom[it->first+"_stddevs"];
+    Systematic *syst = SystFactory::New(it->first, syst_type[it->first], syst_nom[it->first], stddev_nom);
+    syst->SetAxes(systAxes);
+    syst->SetTransformationObs(obsSet);
+    syst->SetDistributionObs(dataObsSet);
+    syst->Construct();
+    syst_vec.push_back(syst);
+  }
 
   ParameterDict minima = mcConfig.GetMinima();
   ParameterDict maxima = mcConfig.GetMaxima();
@@ -238,7 +204,7 @@ Fit(const std::string& mcmcConfigFile_,
   lh.AddPdfs(dists);
   lh.SetCuts(cutCol);
   lh.SetDataDist(dataDist);
-  for (int i_syst = 0; i_syst<syst_vec.size(); i_syst++) {
+  for (int i_syst = 0; i_syst < syst_vec.size(); i_syst++) {
     lh.AddSystematic(syst_vec.at(i_syst));
   }
 
@@ -300,7 +266,7 @@ Fit(const std::string& mcmcConfigFile_,
 		   );
   }
   for(ParameterDict::iterator it = syst_nom.begin(); it != syst_nom.end(); ++it){
-    std::cout << minima[it->first] << " " << maxima[it->first] << " " << syst_nbins[it->first] << std::endl;
+    std::cout << minima[it->first] << " " << maxima[it->first] << " " << syst_nbins[it->first] <<  " " << it->first << std::endl;
     lhAxes.AddAxis(BinAxis(it->first, minima[it->first], maxima[it->first], syst_nbins[it->first]));
   }
 

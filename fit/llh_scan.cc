@@ -10,6 +10,7 @@
 #include <CutCollection.h>
 #include <SystConfigLoader.hh>
 #include <SystConfig.hh>
+#include <SystFactory.hh>
 #include <fstream>
 #include <ROOTNtuple.h>
 #include <BinnedNLLH.h>
@@ -18,10 +19,6 @@
 #include <AxisCollection.h>
 #include <IO.h>
 #include <TH1D.h>
-#include <Scale.h>
-#include <Shift.h>
-#include <Convolution.h>
-#include <Gaussian.h>
 
 #include <Scale.h>
 
@@ -161,39 +158,16 @@ llh_scan(const std::string& mcmcConfigFile_,
     std::vector<std::string> Obs;
     Obs.push_back(syst_obs[it->first]);
     ObsSet obsSet(Obs);
-    if(syst_type[it->first] == "scale"){
-      Scale* scale = new Scale("scale");
-      scale->RenameParameter("scaleFactor",it->first);
-      scale->SetScaleFactor( syst_nom[it->first] );
-      scale->SetAxes(systAxes);
-      scale->SetTransformationObs(obsSet);
-      scale->SetDistributionObs(dataObsSet);
-      scale->Construct();
-      syst_vec.push_back(scale);
-    }
-    else if(syst_type[it->first] == "convolution"){
-      Convolution* conv = new Convolution("conv");
-      Gaussian* gaus = new Gaussian(syst_nom[it->first],syst_nom[it->first+"_stddevs"],it->first );
-      gaus->RenameParameter("means_0", it->first);
-      gaus->RenameParameter("stddevs_0", it->first+"_stddevs");
-      conv->SetFunction(gaus);
-      conv->SetAxes(systAxes);
-      conv->SetTransformationObs(obsSet);
-      conv->SetDistributionObs(dataObsSet);
-      conv->Construct();
-      syst_vec.push_back(conv);
-    }
-    if(syst_type[it->first] == "shift"){
-      std::cout << "applying shift" << std::endl;
-      Shift* shift = new Shift("shift");
-      shift->RenameParameter("shift",it->first);
-      shift->SetShift( syst_nom[it->first] );
-      shift->SetAxes(systAxes);
-      shift->SetTransformationObs(obsSet);
-      shift->SetDistributionObs(dataObsSet);
-      shift->Construct();
-      syst_vec.push_back(shift);
-    }
+    
+    double stddev_nom = 0;
+    if(syst_type[it->first] == "conv")
+      stddev_nom = syst_nom[it->first+"_stddevs"];
+    Systematic *syst = SystFactory::New(it->first, syst_type[it->first], syst_nom[it->first], stddev_nom);
+    syst->SetAxes(systAxes);
+    syst->SetTransformationObs(obsSet);
+    syst->SetDistributionObs(dataObsSet);
+    syst->Construct();
+    syst_vec.push_back(syst);
   }
   
   // now build the likelihood

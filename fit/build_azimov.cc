@@ -15,12 +15,10 @@
 #include <CutLog.h>
 #include <SystConfigLoader.hh>
 #include <SystConfig.hh>
+#include <SystFactory.hh>
 #include <string>
 #include <sys/stat.h>
-#include <Scale.h>
-#include <Shift.h>
-#include <Convolution.h>
-#include <Gaussian.h>
+#include <Systematic.h>
 
 #include <iostream>
 #include <sstream>
@@ -103,46 +101,22 @@ BuildAzimov(const std::string& evConfigFile_,
 
     std::vector <Systematic*> syst_vec;
 
-    //Loop over systematics and declare each type. Must be a better way to do this but
-    // it will do for now
+    //Loop over systematics and declare
     for(std::map<std::string, std::string>::iterator it = syst_type.begin(); it != syst_type.end();
 	++it) {
       std::vector<std::string> Obs;
       Obs.push_back(syst_obs[it->first]);
       ObsSet obsSet(Obs);
-      if(syst_type[it->first] == "scale"){
-	Scale* scale = new Scale("scale");
-	scale->RenameParameter("scaleFactor",it->first);
-	scale->SetScaleFactor( syst_nom[it->first] );
-	scale->SetAxes(systAxes);
-	scale->SetTransformationObs(obsSet);
-	scale->SetDistributionObs(dataObsSet);
-	scale->Construct();
-	syst_vec.push_back(scale);
-      }
-      else if(syst_type[it->first] == "convolution"){
-	Convolution* conv = new Convolution("conv");
-	Gaussian* gaus = new Gaussian(syst_nom[it->first],syst_nom[it->first+"_stddevs"],it->first);
-	gaus->RenameParameter("means_0", it->first);
-	gaus->RenameParameter("stddevs_0", it->first+"_stddevs");
-	conv->SetFunction(gaus);
-	conv->SetAxes(systAxes);
-	conv->SetTransformationObs(obsSet);
-	conv->SetDistributionObs(dataObsSet);
-	conv->Construct();
-	syst_vec.push_back(conv);
-      }
-      if(syst_type[it->first] == "shift"){
-	std::cout << "applying shift" << std::endl;
-        Shift* shift = new Shift("shift");
-        shift->RenameParameter("shift",it->first);
-        shift->SetShift( syst_nom[it->first] );
-        shift->SetAxes(systAxes);
-        shift->SetTransformationObs(obsSet);
-        shift->SetDistributionObs(dataObsSet);
-        shift->Construct();
-        syst_vec.push_back(shift);
-      }
+      
+      double stddev_nom = 0;
+      if(syst_type[it->first] == "conv")
+	stddev_nom = syst_nom[it->first+"_stddevs"];
+      Systematic *syst = SystFactory::New(it->first, syst_type[it->first], syst_nom[it->first], stddev_nom);
+      syst->SetAxes(systAxes);
+      syst->SetTransformationObs(obsSet);
+      syst->SetDistributionObs(dataObsSet);
+      syst->Construct();
+      syst_vec.push_back(syst);
     }
 
     // now build each of the PDFs, scale them to the correct size and add it to the azimov
