@@ -8,6 +8,8 @@
 #include <FitConfig.hh>
 #include <CutFactory.hh>
 #include <CutCollection.h>
+#include <SystConfigLoader.hh>
+#include <SystConfig.hh>
 #include <fstream>
 #include <ROOTNtuple.h>
 #include <BinnedNLLH.h>
@@ -16,6 +18,10 @@
 #include <AxisCollection.h>
 #include <IO.h>
 #include <TH1D.h>
+#include <Scale.h>
+#include <Shift.h>
+#include <Convolution.h>
+#include <Gaussian.h>
 
 #include <Scale.h>
 
@@ -25,6 +31,7 @@ void
 llh_scan(const std::string& mcmcConfigFile_, 
     const std::string& distConfigFile_,
     const std::string& cutConfigFile_, 
+    const std::string& systConfigFile_,
     const std::string& dataPath_,
     const std::string& asmvRatesPath,
     const std::string& dims_,
@@ -128,27 +135,68 @@ llh_scan(const std::string& mcmcConfigFile_,
       dataDist = dataDist.Marginalise(keepObs);
   }
 
-  AxisCollection scaleAxes;
-  scaleAxes.AddAxis(BinAxis("energy", 1.8, 3, 48));
-  scaleAxes.AddAxis(BinAxis("r", 0, 0.77, 6));
-  std::vector<std::string> Obs;
-  Obs.push_back("energy");
-  ObsSet obsSet(Obs);
+  // Load up the systematics
+  SystConfigLoader systLoader(systConfigFile_);
+  SystConfig systConfig = systLoader.LoadActive();
 
-  std::vector<std::string> dataObs;
-  dataObs.push_back("energy");
-  dataObs.push_back("r");
+  AxisCollection systAxes = DistBuilder::BuildAxes(pConfig);
+  std::vector<std::string> dataObs = pConfig.GetBranchNames();
   ObsSet dataObsSet(dataObs);
 
-  // Setting up artificial scale with a scaleFactor = 1.5.
-  Scale* scale = new Scale("scale");
-  scale->RenameParameter("scaleFactor","energy_scale");
-  scale->SetScaleFactor(1.0);
-  scale->SetAxes(scaleAxes);
-  scale->SetTransformationObs(obsSet);
-  scale->SetDistributionObs(dataObsSet);
-  scale->Construct();
+  ParameterDict syst_nom =    systConfig.GetNominal();
+  ParameterDict syst_maxima = systConfig.GetMaxima();
+  ParameterDict syst_minima = systConfig.GetMinima();
+  ParameterDict syst_mass =   systConfig.GetMass();
+  ParameterDict syst_nbins =  systConfig.GetNBins();
+  std::map<std::string, std::string> syst_type = systConfig.GetType();
+  std::map<std::string, std::string> syst_obs =  systConfig.GetObs();
 
+  std::vector <Systematic*> syst_vec;
+
+  //Loop over systematics and declare each type. Must be a better way to do this but
+  // it will do for now
+  for(std::map<std::string, std::string>::iterator it = syst_type.begin(); it != syst_type.end()\
+	;
+      ++it) {
+    std::vector<std::string> Obs;
+    Obs.push_back(syst_obs[it->first]);
+    ObsSet obsSet(Obs);
+    if(syst_type[it->first] == "scale"){
+      Scale* scale = new Scale("scale");
+      scale->RenameParameter("scaleFactor",it->first);
+      scale->SetScaleFactor( syst_nom[it->first] );
+      scale->SetAxes(systAxes);
+      scale->SetTransformationObs(obsSet);
+      scale->SetDistributionObs(dataObsSet);
+      scale->Construct();
+      syst_vec.push_back(scale);
+    }
+    else if(syst_type[it->first] == "convolution"){
+      //need to implement for conv still
+      Convolution* conv = new Convolution("conv");
+      Gaussian* gaus = new Gaussian(syst_nom[it->first],syst_nom[it->first+"_stddevs"],it->first );
+      gaus->RenameParameter("means_0", it->first);
+      gaus->RenameParameter("stddevs_0", it->first+"_stddevs");
+      conv->SetFunction(gaus);
+      conv->SetAxes(systAxes);
+      conv->SetTransformationObs(obsSet);
+      conv->SetDistributionObs(dataObsSet);
+      conv->Construct();
+      syst_vec.push_back(conv);
+    }
+    if(syst_type[it->first] == "shift"){
+      std::cout << "applying shift" << std::endl;
+      Shift* shift = new Shift("shift");
+      shift->RenameParameter("shift",it->first);
+      shift->SetShift( syst_nom[it->first] );
+      shift->SetAxes(systAxes);
+      shift->SetTransformationObs(obsSet);
+      shift->SetDistributionObs(dataObsSet);
+      shift->Construct();
+      syst_vec.push_back(shift);
+    }
+  }
+  
   // now build the likelihood
   BinnedNLLH lh;
   lh.SetBufferAsOverflow(true);
@@ -156,27 +204,32 @@ llh_scan(const std::string& mcmcConfigFile_,
   lh.AddPdfs(dists);
   lh.SetCuts(cutCol);
   lh.SetDataDist(dataDist);
-  lh.AddSystematic(scale);
+  for (int i_syst = 0; i_syst<syst_vec.size(); i_syst++) {
+    lh.AddSystematic(syst_vec.at(i_syst));
+  }
 
   ParameterDict constrMeans  = mcConfig.GetConstrMeans();
   ParameterDict constrSigmas = mcConfig.GetConstrSigmas();
   ParameterDict mins = mcConfig.GetMinima();
   ParameterDict maxs = mcConfig.GetMaxima();
-  mins["energy_scale"] = 0.90;
-  maxs["energy_scale"] = 1.12; 
-
 
   for(ParameterDict::iterator it = constrMeans.begin(); it != constrMeans.end();
       ++it)
       lh.SetConstraint(it->first, it->second, constrSigmas.at(it->first));
-  
+
   //Load in asimov rates for central value of each parameter
   TFile *asmvRatesFile = new TFile(asmvRatesPath.c_str(), "OPEN");
   asmvRatesFile->cd();
   std::map<std::string, double>* tempMap;
   asmvRatesFile->GetObject("AsimovRates",tempMap);
   ParameterDict asimovRates = (ParameterDict)*tempMap;
-  asimovRates["energy_scale"] = 1.0;
+
+  for(ParameterDict::iterator it = syst_mass.begin(); it != syst_mass.end(); ++it){
+    mins[it->first] = syst_minima[it->first];
+    maxs[it->first] = syst_maxima[it->first];
+    asimovRates[it->first] = syst_nom[it->first];
+  }
+
   lh.RegisterFitComponents();
 
   //number of points in scan
@@ -203,9 +256,10 @@ llh_scan(const std::string& mcmcConfigFile_,
     std::string name = it->first;
     std::cout << "Scanning for " << name << std::endl;
     double nom = asimovRates[name];
+    if(nom==0) nom = 1;
     double min = mins[name];
     double max = maxs[name];
-
+    std::cout << "Scanning for " << name << " from " << min << " to " << max << ". Nom " << nom << std::endl;
     //Make histos
     TString htitle = Form("%s, Asimov Rate: %f", name.c_str(), nom);
     TH1D *hScan = new TH1D((name+"_full").c_str(), (name+"_full").c_str(), npoints, min/nom, max/nom);
@@ -218,19 +272,19 @@ llh_scan(const std::string& mcmcConfigFile_,
     //hScanPen->SetTitle(std::string(std::string("2LLH_pen, ") + name + ";" + name + "; -2(ln L_{penalty})").c_str());
 
     //loop from min to max in steps of 150 (might want to do smaller range)
-    for(int i=0; i<1; i++){
+    for(int i=0; i<150; i++){
 
       if (i % countwidth == 0) {
 	std::cout << i << "/" << npoints << " (" << double(i)/double(npoints) * 100 << "%)" << std::endl;
       }
 
       //Set Parameters
-      double parval = 1.05;//hScan->GetBinCenter(i+1)*nom;
+      double parval = hScan->GetBinCenter(i+1)*nom;
+      std::cout << parval << std::endl;
       double tempval = parameterValues[name];
       parameterValues[name] = parval;
 
       lh.SetParameters(parameterValues);
-      lh.Init();
       //Eval LLH (later do sample and penalty)
       double LLH = lh.Evaluate();
 
@@ -255,20 +309,21 @@ llh_scan(const std::string& mcmcConfigFile_,
 }
 
 int main(int argc, char *argv[]){
-  if (argc != 8){
-    std::cout << "\nUsage: llh_scan <fit_config_file> <dist_config_file> <cut_config_file> <data_to_fit> <asimovRatesFile> <4d,3d or 2d> <outdir>" << std::endl;
+  if (argc != 9){
+    std::cout << "\nUsage: llh_scan <fit_config_file> <dist_config_file> <cut_config_file> <syst_config_file> <data_to_fit> <asimovRatesFile> <4d,3d or 2d> <outdir>" << std::endl;
       return 1;
   }
 
   std::string fitConfigFile(argv[1]);
   std::string pdfPath(argv[2]);
   std::string cutConfigFile(argv[3]);
-  std::string dataPath(argv[4]);
-  std::string asmvRatesPath(argv[5]);
-  std::string dims(argv[6]);
-  std::string outDir(argv[7]);
+  std::string systConfigFile(argv[4]);
+  std::string dataPath(argv[5]);
+  std::string asmvRatesPath(argv[6]);
+  std::string dims(argv[7]);
+  std::string outDir(argv[8]);
 
-  llh_scan(fitConfigFile, pdfPath, cutConfigFile, dataPath, asmvRatesPath, dims, outDir);
+  llh_scan(fitConfigFile, pdfPath, cutConfigFile, systConfigFile, dataPath, asmvRatesPath, dims, outDir);
 
   return 0;
 }
