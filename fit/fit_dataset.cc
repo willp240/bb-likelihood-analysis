@@ -23,8 +23,10 @@
 #include <Minuit.h>
 
 #include <Scale.h>
+#include <Shift.h>
 #include <Convolution.h>
-#include <Gaussian.h>
+#include <GaussianERes.h>
+
 
 using namespace bbfit;
 
@@ -176,8 +178,14 @@ Fit(const std::string& mcmcConfigFile_,
   std::map<std::string, std::string> syst_type = systConfig.GetType();
   std::map<std::string, std::string> syst_obs =  systConfig.GetObs();
 
-  std::vector <Systematic*> syst_vec;
+  syst_nom.erase("energy_conv");
+  syst_maxima.erase("energy_conv");
+  syst_minima.erase("energy_conv");
+  syst_mass.erase("energy_conv");
+  syst_nbins.erase("energy_conv");
 
+  std::vector <Systematic*> syst_vec;
+ 
   //Loop over systematics and declare each type. Must be a better way to do this but
   // it will do for now
   for(std::map<std::string, std::string>::iterator it = syst_type.begin(); it != syst_type.end();
@@ -198,9 +206,9 @@ Fit(const std::string& mcmcConfigFile_,
     else if(syst_type[it->first] == "convolution"){
       //need to implement for conv still
       Convolution* conv = new Convolution("conv");
-      Gaussian* gaus = new Gaussian(syst_nom[it->first],syst_nom[it->first+"_stddevs"],it->first);
-      gaus->RenameParameter("means_0", it->first);
-      gaus->RenameParameter("stddevs_0", it->first+"_stddevs");
+      GaussianERes* gaus = new GaussianERes(syst_nom[it->first+"_stddevs"],it->first);
+      //gaus->RenameParameter("means_0", it->first);
+      gaus->RenameParameter("eres_0", it->first+"_stddevs");
       conv->SetFunction(gaus);
       conv->SetAxes(systAxes);
       conv->SetTransformationObs(obsSet);
@@ -208,7 +216,17 @@ Fit(const std::string& mcmcConfigFile_,
       conv->Construct();
       syst_vec.push_back(conv);
     }
-  }
+    if(syst_type[it->first] == "shift"){
+      Shift* shift = new Shift("shift");
+      shift->RenameParameter("shift",it->first);
+      shift->SetShift( syst_nom[it->first] );
+      shift->SetAxes(systAxes);
+      shift->SetTransformationObs(obsSet);
+      shift->SetDistributionObs(dataObsSet);
+      shift->Construct();
+      syst_vec.push_back(shift);
+    }
+    }
 
   ParameterDict minima = mcConfig.GetMinima();
   ParameterDict maxima = mcConfig.GetMaxima();
@@ -250,7 +268,7 @@ Fit(const std::string& mcmcConfigFile_,
     minima[it->first] = syst_minima[it->first];
     maxima[it->first] = syst_maxima[it->first];
   }
-
+  
   sampler.SetMinima(minima);
   sampler.SetMaxima(maxima);
   sampler.SetMasses(masses);
@@ -285,9 +303,8 @@ Fit(const std::string& mcmcConfigFile_,
     std::cout << minima[it->first] << " " << maxima[it->first] << " " << syst_nbins[it->first] << std::endl;
     lhAxes.AddAxis(BinAxis(it->first, minima[it->first], maxima[it->first], syst_nbins[it->first]));
   }
-  
-  mh.SetHistogramAxes(lhAxes);
 
+  mh.SetHistogramAxes(lhAxes);
 
   // go
   const FitResult& res = mh.Optimise(&lh);
