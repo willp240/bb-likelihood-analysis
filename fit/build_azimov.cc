@@ -13,9 +13,14 @@
 #include <CutCollection.h>
 #include <CutFactory.hh>
 #include <CutLog.h>
+#include <SystConfigLoader.hh>
+#include <SystConfig.hh>
 #include <string>
 #include <sys/stat.h>
 #include <Scale.h>
+#include <Shift.h>
+#include <Convolution.h>
+#include <Gaussian.h>
 
 #include <iostream>
 #include <sstream>
@@ -28,6 +33,7 @@ void
 BuildAzimov(const std::string& evConfigFile_, 
             const std::string& pdfConfigFile_, 
             const std::string& cutConfigFile_,
+	    const std::string& systConfigFile_,
             double liveTime_, const std::string& outName_, bool loadPDF_, 
             double nGenScale_, double loadingScale_){
 
@@ -64,6 +70,10 @@ BuildAzimov(const std::string& evConfigFile_,
       mkdir(outName_.c_str(), 0700);
     }
 
+    // Load up the systematics
+    SystConfigLoader systLoader(systConfigFile_);
+    SystConfig systConfig = systLoader.LoadActive();
+
     // create the empty dist
     BinnedED azimov;
     //vector of each interaction type distribution
@@ -78,26 +88,62 @@ BuildAzimov(const std::string& evConfigFile_,
     std::vector<std::string> names;
     std::vector<double> rates;
 
-    AxisCollection scaleAxes;
-    scaleAxes.AddAxis(BinAxis("energy", 1.8, 3, 48));
-    scaleAxes.AddAxis(BinAxis("r", 0, 0.77, 6));
-    std::vector<std::string> Obs;
-    Obs.push_back("energy");
-    ObsSet obsSet(Obs);
-
-    std::vector<std::string> dataObs;
-    dataObs.push_back("energy");
-    dataObs.push_back("r");
+    //load up systematics
+    AxisCollection systAxes = DistBuilder::BuildAxes(pConfig);
+    std::vector<std::string> dataObs = pConfig.GetBranchNames();
     ObsSet dataObsSet(dataObs);
 
-    // Setting up artificial scale with a scaleFactor = 1.5.
-    Scale* scale = new Scale("scale");
-    scale->RenameParameter("scaleFactor","energy_scale");
-    scale->SetScaleFactor(1.00);
-    scale->SetAxes(scaleAxes);
-    scale->SetTransformationObs(obsSet);
-    scale->SetDistributionObs(dataObsSet);
-    scale->Construct();
+    ParameterDict syst_nom =    systConfig.GetNominal();
+    ParameterDict syst_maxima = systConfig.GetMaxima();
+    ParameterDict syst_minima = systConfig.GetMinima();
+    ParameterDict syst_mass =   systConfig.GetMass();
+    ParameterDict syst_nbins =  systConfig.GetNBins();
+    std::map<std::string, std::string> syst_type = systConfig.GetType();
+    std::map<std::string, std::string> syst_obs =  systConfig.GetObs();
+
+    std::vector <Systematic*> syst_vec;
+
+    //Loop over systematics and declare each type. Must be a better way to do this but
+    // it will do for now
+    for(std::map<std::string, std::string>::iterator it = syst_type.begin(); it != syst_type.end();
+	++it) {
+      std::vector<std::string> Obs;
+      Obs.push_back(syst_obs[it->first]);
+      ObsSet obsSet(Obs);
+      if(syst_type[it->first] == "scale"){
+	Scale* scale = new Scale("scale");
+	scale->RenameParameter("scaleFactor",it->first);
+	scale->SetScaleFactor( syst_nom[it->first] );
+	scale->SetAxes(systAxes);
+	scale->SetTransformationObs(obsSet);
+	scale->SetDistributionObs(dataObsSet);
+	scale->Construct();
+	syst_vec.push_back(scale);
+      }
+      else if(syst_type[it->first] == "convolution"){
+	Convolution* conv = new Convolution("conv");
+	Gaussian* gaus = new Gaussian(syst_nom[it->first],syst_nom[it->first+"_stddevs"],it->first);
+	gaus->RenameParameter("means_0", it->first);
+	gaus->RenameParameter("stddevs_0", it->first+"_stddevs");
+	conv->SetFunction(gaus);
+	conv->SetAxes(systAxes);
+	conv->SetTransformationObs(obsSet);
+	conv->SetDistributionObs(dataObsSet);
+	conv->Construct();
+	syst_vec.push_back(conv);
+      }
+      if(syst_type[it->first] == "shift"){
+	std::cout << "applying shift" << std::endl;
+        Shift* shift = new Shift("shift");
+        shift->RenameParameter("shift",it->first);
+        shift->SetShift( syst_nom[it->first] );
+        shift->SetAxes(systAxes);
+        shift->SetTransformationObs(obsSet);
+        shift->SetDistributionObs(dataObsSet);
+        shift->Construct();
+        syst_vec.push_back(shift);
+      }
+    }
 
     // now build each of the PDFs, scale them to the correct size and add it to the azimov
     for(EvMap::iterator it = toGet.begin(); it != toGet.end(); ++it){
@@ -117,10 +163,11 @@ BuildAzimov(const std::string& evConfigFile_,
             continue;
         std::cout << "Integral before scale = " << dist.Integral() << std::endl;
         std::cout << "Efficiency  = " << dist.Integral()/nGen << std::endl;
-	double distInt = dist.Integral();
-	dist = scale->operator()(dist);
-	dist.Scale(distInt);
-
+	for(int i_syst = 0; i_syst < syst_vec.size(); i_syst ++) {
+	  double distInt = dist.Integral();
+	  dist = syst_vec.at(i_syst)->operator()(dist);
+	  dist.Scale(distInt);
+	}
 	double rate = it->second.GetRate();
 	if (it->second.GetLoadingScaling() == "true"){
 	  std::cout<< "Scaling rate by "<<  loadingScale_ << " due to higher loading" <<std::endl;
@@ -172,9 +219,6 @@ BuildAzimov(const std::string& evConfigFile_,
         delete ds;
     }    
 
-    
-    //    azimov = scale->operator()(azimov);
-
     IO::SaveHistogram(azimov.GetHistogram(), outName_ + ".h5");
     //map of asimov rates for each interaction type
     std::map < std::string, double > asimovmap;
@@ -217,27 +261,28 @@ BuildAzimov(const std::string& evConfigFile_,
 
 int main(int argc, char* argv[]){
     if(argc != 7 && argc != 8 && argc != 9){
-        std::cout << "Usage: ./build_azimov <event_config_file> <pdf_config_file> <cut_config_file> <live_time(yr)> <out_file(no ext)> <load_from_pdf(0 or 1)> <nGen scaling (optional)> <loading scale (optional)>"
+      std::cout << "Usage: ./build_azimov <event_config_file> <pdf_config_file> <cut_config_file> <syst_config_file> <live_time(yr)> <out_file(no ext)> <load_from_pdf(0 or 1)> <nGen scaling (optional)> <loading scale (optional)>"
                   << std::endl;
         return 1;
     }
     std::string evConfigFile(argv[1]);
     std::string pdfConfigFile(argv[2]);
     std::string cutConfigFile(argv[3]);
-    std::string outName(argv[5]);
+    std::string systConfigFile(argv[4]);
+    std::string outName(argv[6]);
     double liveTime;
     bool  loadPDF;
-    std::istringstream(argv[4]) >> liveTime;
-    std::istringstream(argv[6]) >> loadPDF;
+    std::istringstream(argv[5]) >> liveTime;
+    std::istringstream(argv[7]) >> loadPDF;
     
     double nGenScale = 1;
-    if((argc == 8) || (argc == 9))
-        std::istringstream(argv[7]) >> nGenScale;
+    if((argc == 9) || (argc == 10))
+        std::istringstream(argv[8]) >> nGenScale;
 
     double loadingScale = 1;
-    if(argc == 9)
-      std::istringstream(argv[8]) >> loadingScale;
+    if(argc == 10)
+      std::istringstream(argv[9]) >> loadingScale;
 
-    BuildAzimov(evConfigFile, pdfConfigFile, cutConfigFile, liveTime, outName, loadPDF, nGenScale, loadingScale);
+    BuildAzimov(evConfigFile, pdfConfigFile, cutConfigFile, systConfigFile, liveTime, outName, loadPDF, nGenScale, loadingScale);
     return 0;
 }

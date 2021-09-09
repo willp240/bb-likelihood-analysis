@@ -172,7 +172,6 @@ llh_scan(const std::string& mcmcConfigFile_,
       syst_vec.push_back(scale);
     }
     else if(syst_type[it->first] == "convolution"){
-      //need to implement for conv still
       Convolution* conv = new Convolution("conv");
       Gaussian* gaus = new Gaussian(syst_nom[it->first],syst_nom[it->first+"_stddevs"],it->first );
       gaus->RenameParameter("means_0", it->first);
