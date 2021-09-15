@@ -55,7 +55,7 @@ bin/make_trees: make_trees.cc $(LIB)
 
 bin/build_azimov: build_azimov.cc $(LIB)
 	mkdir -p bin
-	$(CXX)  build_azimov.cc -I$(INC_DIR) -I$(OXSX_INC) -w -L$(LIB_DIR) -L$(OXSX_LIB_DIR) -l$(LIB_NAME) -l$(OXSX_LIB_NAME)  $(ROOT_FLAGS) $(G4_FLAGS) $(H5_LIBS) -larmadillo -o $@
+	$(CXX)  build_azimov.cc -I$(INC_DIR) -I$(OXSX_INC) -w -L$(LIB_DIR) -L$(OXSX_LIB_DIR) -l$(LIB_NAME) -l$(OXSX_LIB_NAME)  $(ROOT_FLAGS) $(G4_FLAGS) $(H5_LIBS) ${GSL_FLAGS} -larmadillo -o $@
 
 
 bin/sum_pdfs: sum_pdfs.cc $(LIB)
@@ -79,7 +79,7 @@ bin/slice_pdfs: slice_pdfs.cc $(LIB)
 
 bin/llh_scan: llh_scan.cc $(LIB)
 	mkdir -p bin
-	$(CXX)  llh_scan.cc -I$(INC_DIR) -I$(OXSX_INC) -w -L$(LIB_DIR) -L$(OXSX_LIB_DIR) -l$(LIB_NAME) -l$(OXSX_LIB_NAME)  $(ROOT_FLAGS) $(G4_FLAGS) $(H5_LIBS) -larmadillo -o $@
+	$(CXX)  llh_scan.cc -I$(INC_DIR) -I$(OXSX_INC) -w -L$(LIB_DIR) -L$(OXSX_LIB_DIR) -l$(LIB_NAME) -l$(OXSX_LIB_NAME)  $(ROOT_FLAGS) $(G4_FLAGS) $(H5_LIBS) ${GSL_FLAGS} -larmadillo -o $@
 
 
 
