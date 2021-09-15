@@ -44,7 +44,6 @@ ParMap constrSigmas;
 ParMap mins;
 ParMap maxs;
 ParMap asimovRates;
-std::string asmvRatesFileName;
 std::string mcmcConfigFile;
 std::string asmvDistsFileName;
 std::string scaledPostfitDistFileName;
@@ -83,20 +82,19 @@ using namespace bbfit;
 
 int main(int argc, char *argv[]) {
   
-  if (argc != 6 && argc != 7 ) {
-    std::cerr << "./MakePlots root_file_to_analyse.root asimovRatesFile asimovDistFile scaledPostfitDistFile mcmcConfigFile correlations " << std::endl;
+  if (argc != 5 && argc != 6 ) {
+    std::cerr << "./MakePlots root_file_to_analyse.root asimovDistFile scaledPostfitDistFile mcmcConfigFile correlations " << std::endl;
     exit(-1);
   }
 
   std::string filename = argv[1];
-  asmvRatesFileName = argv[2];
-  asmvDistsFileName = argv[3];
-  scaledPostfitDistFileName = argv[4];
-  mcmcConfigFile = argv[5];
+  asmvDistsFileName = argv[2];
+  scaledPostfitDistFileName = argv[3];
+  mcmcConfigFile = argv[4];
 
   //Plotting correlations gives lots of plots and takes a bit of time, so only do if user wants to
   bool correlations = false;
-  if (argc == 7) {
+  if (argc == 6) {
       correlations = true;
   }
 
@@ -359,7 +357,22 @@ void MakePlots(std::string inputFile, bool correlations) {
     file->cd();
     params->cd();
     c0->Write();
+
+    // Trace of each parameter
+    TH2D *htrace = new TH2D(bnames[i]+"_trace", bnames[i]+"_trace", 100, 0, chain->GetMaximum("Step"), 100, minimum, maximum );
+    htrace->GetXaxis()->SetTitle("Step");
+    htrace->GetYaxis()->SetTitle(bnames[i]);
+    htrace->SetTitle(bnames[i]+"_trace");
     
+    // Project bnames[i] onto htrace, applying stepcut
+    chain->Project(bnames[i]+"_trace", bnames[i]+":Step");
+
+    gStyle->SetPalette(51);
+    htrace->Draw("colz");
+    c0->SetName(htrace->GetName());
+    c0->SetTitle(htrace->GetTitle());
+    c0->Print(canvasname);
+
     // If we're interested in drawing the correlations need to invoke another for loop
     // Can surely improve this with less repeated code but it will do for now
     if (correlations) {
@@ -421,6 +434,7 @@ void MakePlots(std::string inputFile, bool correlations) {
       } // End for (j = 0; j <= i; ++j)
     }	
     delete hpost;
+    delete htrace;
     delete asimov;
     delete hpd;
     delete leg;
@@ -697,6 +711,7 @@ void MakePlots(std::string inputFile, bool correlations) {
   r1Ds->Write("r_comparisons");
 
   file->Close();
+
 }
 
 // **************************
@@ -813,7 +828,7 @@ void LoadInputVals( ) {
   // **************************
 
   //Get asimov rates in a map
-  TFile *asmvRatesFile = new TFile(asmvRatesFileName.c_str(), "OPEN");
+  TFile *asmvRatesFile = new TFile(asmvDistsFileName.c_str(), "READ");
   asmvRatesFile->cd();
   //Can't do GetObject for our own type (ParMap), so use a temporary std::map and cast
   std::map<std::string, double>* tempMap;
@@ -837,7 +852,7 @@ void LoadInputVals( ) {
   ParMap tempRates;
 
   //ttrees don't like hyphens in names so loop over parameters, switch any - to _ (currently only pmt-bg), and then set values for temporary ParMaps
-  for(ParameterDict::iterator it = mins.begin(); it != mins.end(); ++it){
+  for(ParameterDict::iterator it = asimovRates.begin(); it != asimovRates.end(); ++it){
     std::string tempName = it->first;
     if(tempName.find("-") != std::string::npos)
       tempName.replace(tempName.find("-"), 1, "_");
@@ -855,8 +870,6 @@ void LoadInputVals( ) {
   maxs = tempMaxs;
   asimovRates = tempRates;
 
-  // Hack this for now. Once systetatics are in config can do it properly here
-  asimovRates["energy_scale"] = 1.05;
 }
 
 // **************************
@@ -887,6 +900,7 @@ void GetParLimits(std::string paramName, double &central, double &prior, double 
   } else {
     up_error = central + error;
   }
+
 }
 
 // *****************************

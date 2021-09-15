@@ -196,6 +196,7 @@ BuildAzimov(const std::string& evConfigFile_,
     IO::SaveHistogram(azimov.GetHistogram(), outName_ + ".h5");
     //map of asimov rates for each interaction type
     std::map < std::string, double > asimovmap;
+   
     if(azimov.GetNDims() < 3){
         IO::SaveHistogram(azimov.GetHistogram(), outName_ + ".root");
 	//and save the individual distribution for each interaction type
@@ -205,6 +206,10 @@ BuildAzimov(const std::string& evConfigFile_,
                             outName_ + "/" + name + ".root");
 	  //save rates to a map
 	  asimovmap[name] = indivAsmvDists[i].GetHistogram().Integral();
+	}
+	//Loop over systematics and declare
+	for(ParameterDict::iterator it = syst_nom.begin(); it != syst_nom.end(); ++it){
+	  asimovmap[it->first] = it->second;
 	}
     }
     else{
@@ -222,10 +227,14 @@ BuildAzimov(const std::string& evConfigFile_,
 	//save rates to a map
 	asimovmap[name] = indivAsmvDists[i].GetHistogram().Integral();
       }
+      //Loop over systematics and declare
+      for(ParameterDict::iterator it = syst_nom.begin(); it != syst_nom.end(); ++it){
+	asimovmap[it->first] = it->second;
+      }
     }
     
     //save rates for each interaction type in a file, could be saved in full asimov file instead of new stand alone file?
-    TFile *fRates = TFile::Open((outName_+"/asimovRates.root").c_str(), "RECREATE");
+    TFile *fRates = TFile::Open((outName_ + ".root").c_str(), "UPDATE");
     fRates->WriteObject(&asimovmap, "AsimovRates");
     fRates->Close();
     
