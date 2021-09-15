@@ -173,7 +173,7 @@ Fit(const std::string& mcmcConfigFile_,
   std::map<std::string, std::string> syst_type = systConfig.GetType();
   std::map<std::string, std::string> syst_obs =  systConfig.GetObs();
 
-  std::vector <Systematic*> syst_vec;
+  std::map<std::string, Systematic*> syst_map;
  
   //Loop over systematics and declare each type. Must be a better way to do this but
   // it will do for now
@@ -191,7 +191,7 @@ Fit(const std::string& mcmcConfigFile_,
     syst->SetTransformationObs(obsSet);
     syst->SetDistributionObs(dataObsSet);
     syst->Construct();
-    syst_vec.push_back(syst);
+    syst_map[it->first] = syst;
   }
 
   ParameterDict minima = mcConfig.GetMinima();
@@ -204,8 +204,8 @@ Fit(const std::string& mcmcConfigFile_,
   lh.AddPdfs(dists);
   lh.SetCuts(cutCol);
   lh.SetDataDist(dataDist);
-  for (int i_syst = 0; i_syst < syst_vec.size(); i_syst++) {
-    lh.AddSystematic(syst_vec.at(i_syst));
+  for(std::map<std::string, Systematic*>::iterator it = syst_map.begin(); it != syst_map.end(); ++it) {
+    lh.AddSystematic(syst_map[it->first]);
   }
 
   ParameterDict constrMeans  = mcConfig.GetConstrMeans();
@@ -346,6 +346,13 @@ Fit(const std::string& mcmcConfigFile_,
 	  //sum all scaled distributions to get full postfit "dataset"
 	  postfitDist.Add(dists[i]);
       }
+      //      for(int i_syst = 0; i_syst < syst_vec.size(); i_syst ++) {
+      for(std::map<std::string, Systematic*>::iterator it = syst_map.begin(); it != syst_map.end(); ++it) {
+	double distInt = postfitDist.Integral();
+	syst_map[it->first]->SetParameter(it->first,bestFit[it->first]);
+	postfitDist = syst_map[it->first]->operator()(postfitDist);
+	postfitDist.Scale(distInt);
+      }
       IO::SaveHistogram(postfitDist.GetHistogram(),
 			scaledDistDir + "/postfitdist.root");
   }else{
@@ -363,6 +370,13 @@ Fit(const std::string& mcmcConfigFile_,
 			    scaledDistDir + "/" + name + ".root");
 	  //sum all scaled distributions to get full postfit "dataset"
 	  postfitDist.Add(dists[i]);
+      }
+      //for(int i_syst = 0; i_syst < syst_vec.size(); i_syst ++) {
+      for(std::map<std::string, Systematic*>::iterator it = syst_map.begin(); it != syst_map.end(); ++it) {
+	double distInt = postfitDist.Integral();
+	syst_map[it->first]->SetParameter(it->first,bestFit[it->first]);
+	postfitDist = syst_map[it->first]->operator()(postfitDist);
+	postfitDist.Scale(distInt);
       }
       IO::SaveHistogram(postfitDist.GetHistogram(),
                         scaledDistDir + "/postfitdist.root");
