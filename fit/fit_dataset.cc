@@ -221,23 +221,38 @@ Fit(const std::string& mcmcConfigFile_,
   // Create something to do hamiltonian sampling
   ParameterDict sigmas = mcConfig.GetSigmas();
 
-  HamiltonianSampler<BinnedNLLH> sampler(lh, mcConfig.GetEpsilon(), 
-                                       mcConfig.GetNSteps());
-  
+  //  HamiltonianSampler<BinnedNLLH> sampler(lh, mcConfig.GetEpsilon(), 
+  //                                   mcConfig.GetNSteps());
+  MetropolisSampler sampler;
+
   ParameterDict masses;
-  
-  for(ParameterDict::iterator it = sigmas.begin(); it != sigmas.end(); ++it)
+
+  TString ratespath = "/data/snoplus/parkerw/bb_sigex/Sep15_Allbg_Asimov/asimovdata.root";
+  TFile *asmvRatesFile = new TFile(ratespath, "READ");
+  ParameterDict asimovRates;
+  std::map<std::string, double>* tempMap;
+  asmvRatesFile->GetObject("AsimovRates",tempMap);
+  asimovRates = (ParameterDict)*tempMap;
+  asmvRatesFile->Close();
+
+  for(ParameterDict::iterator it = sigmas.begin(); it != sigmas.end(); ++it){
       masses[it->first] = 10/sigmas[it->first]/1/sigmas[it->first];
+      sigmas[it->first] = 0.1*asimovRates[it->first];
+      if(sigmas[it->first] ==0)
+	sigmas[it->first] = 30;
+  }
 
   for(ParameterDict::iterator it = syst_mass.begin(); it != syst_mass.end(); ++it){
     masses[it->first] = syst_mass[it->first];
     minima[it->first] = syst_minima[it->first];
     maxima[it->first] = syst_maxima[it->first];
+    sigmas[it->first] = 0.001;
   }
   
-  sampler.SetMinima(minima);
-  sampler.SetMaxima(maxima);
-  sampler.SetMasses(masses);
+  //sampler.SetMinima(minima);
+  //sampler.SetMaxima(maxima);
+  //sampler.SetMasses(masses);
+  sampler.SetSigmas(sigmas);
 
   MCMC mh(sampler);
 
@@ -285,7 +300,6 @@ Fit(const std::string& mcmcConfigFile_,
   MCMCSamples samples = mh.GetSamples();
 
   if(saveChain){
-    TTree* outchain = samples.GetChain();
     //Messy way to make output filename. OutDir is full path to output result directory. Using find_last_of / and stripping everything before it to get directory name (tempString2). Similarly find name of directory above (where pdfs and fake data is saved). Output filename is then aboveDirectory_resultDirectory.root, inside OutDir. Could surely do this in fewer lines, or just call it outputTree.root or something, but nice to have a more unique name 
     std::string chainFileName = outDir;
     std::string tempString1 = outDir;
@@ -301,6 +315,7 @@ Fit(const std::string& mcmcConfigFile_,
     
     chainFileName = outDir+tempString1+"_"+tempString2+".root";
     TFile *f = new TFile(chainFileName.c_str(),"recreate");
+    TTree* outchain = samples.GetChain();
     outchain->Write();  
   }
 
