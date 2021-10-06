@@ -38,6 +38,7 @@
 //Should put these in header file
 std::vector<std::string> *parNames;
 std::vector<double> *parRates;
+std::vector<TString> bnames;
 typedef std::map<std::string, double> ParMap;
 ParMap constrMeans;
 ParMap constrSigmas;
@@ -129,7 +130,7 @@ void MakePlots(std::string inputFile, bool correlations) {
   int nbr = brlis->GetEntries();
   std::cout << "# of branches: " << nbr << std::endl;
   // Make an array of TStrings
-  TString bnames[nbr];
+  //TString bnames[nbr];
 
   // Have a counter for how many parameters we have
   int npar = 0;
@@ -150,9 +151,10 @@ void MakePlots(std::string inputFile, bool correlations) {
     if(bname.BeginsWith("Step")) continue;
 
     chain->SetBranchStatus(bname, true);
-    bnames[npar]=bname;
+    bnames.push_back(bname);
     npar++;
   }
+  std::cout << "numpars " << npar << std::endl;
 
   // Get first entry in chain
   chain->GetEntry(0);
@@ -215,7 +217,7 @@ void MakePlots(std::string inputFile, bool correlations) {
   if (correlations) {
     rootfilename += "_plotCorrelations.root";
   } else {
-    rootfilename += "_plotParameters.root";
+    rootfilename += "_plotParameters2.root";
   }
 
   // The output file
@@ -237,7 +239,7 @@ void MakePlots(std::string inputFile, bool correlations) {
     double asimovLine = 0.0;
     
     //Get bounds and asimov rates for parameter
-    std::string tempString = std::string(bnames[i]);
+    std::string tempString = std::string(bnames.at(i));
     double central, prior, down, up;
     GetParLimits(tempString, central, prior, down, up);
     asimovLine = central;
@@ -245,20 +247,23 @@ void MakePlots(std::string inputFile, bool correlations) {
     file->cd();
     
     // Get the maximum and minimum for the parameter
-    chain->Draw(bnames[i],stepcut.c_str());
+    chain->Draw(bnames.at(i),stepcut.c_str());
     TH1 *htemp = (TH1*)gPad->GetPrimitive("htemp");
     double maximum = htemp->GetXaxis()->GetBinUpEdge(htemp->GetXaxis()->GetNbins());
     double minimum = htemp->GetXaxis()->GetBinLowEdge(1);
 
+    if(minimum<0)
+      std::cout << "*************" << bnames.at(i) << " " << minimum << std::endl;
+    
     // This holds the posterior density
-    TH1D *hpost = new TH1D(bnames[i], bnames[i], nbins, minimum, maximum);
+    TH1D *hpost = new TH1D(bnames.at(i), bnames.at(i), nbins, minimum, maximum);
     hpost->SetMinimum(0);
     hpost->GetYaxis()->SetTitle("Steps");
     hpost->GetYaxis()->SetNoExponent(false);
-    hpost->SetTitle(bnames[i]);
+    hpost->SetTitle(bnames.at(i));
     
-    // Project bnames[i] onto hpost, applying stepcut
-    chain->Project(bnames[i], bnames[i], stepcut.c_str());
+    // Project bnames.at(i) onto hpost, applying stepcut
+    chain->Project(bnames.at(i), bnames.at(i), stepcut.c_str());
 
     // Apply one smoothing
     hpost->Smooth();
@@ -270,7 +275,7 @@ void MakePlots(std::string inputFile, bool correlations) {
     GetHPD(hpost, peakval, sigma_hpd, sigma_p, sigma_m);
     double gauss_mean, gauss_rms;
     GetGaussian(hpost, gauss, gauss_mean, gauss_rms);
-    double maxllh = GetMaxLLHPar(chain, maxLLHStep, bnames[i].Data() ); 
+    double maxllh = GetMaxLLHPar(chain, maxLLHStep, bnames.at(i).Data() ); 
     double maxllh_norm;
 
     std::cout << i << ": " << mean << " +/- " << rms << " (" << peakval << "+/-" << sigma_hpd << " + " << sigma_p << " - " << sigma_m << ")" << " (" << gauss_mean << "+/-" << gauss_rms << ") " << std::endl;
@@ -359,13 +364,13 @@ void MakePlots(std::string inputFile, bool correlations) {
     c0->Write();
 
     // Trace of each parameter
-    TH2D *htrace = new TH2D(bnames[i]+"_trace", bnames[i]+"_trace", 100, 0, chain->GetMaximum("Step"), 100, minimum, maximum );
+    TH2D *htrace = new TH2D(bnames.at(i)+"_trace", bnames.at(i)+"_trace", 100, 0, chain->GetMaximum("Step"), 100, minimum, maximum );
     htrace->GetXaxis()->SetTitle("Step");
-    htrace->GetYaxis()->SetTitle(bnames[i]);
-    htrace->SetTitle(bnames[i]+"_trace");
+    htrace->GetYaxis()->SetTitle(bnames.at(i));
+    htrace->SetTitle(bnames.at(i)+"_trace");
     
-    // Project bnames[i] onto htrace, applying stepcut
-    chain->Project(bnames[i]+"_trace", bnames[i]+":Step");
+    // Project bnames.at(i) onto htrace, applying stepcut
+    chain->Project(bnames.at(i)+"_trace", bnames.at(i)+":Step");
 
     gStyle->SetPalette(51);
     htrace->Draw("colz");
@@ -393,9 +398,9 @@ void MakePlots(std::string inputFile, bool correlations) {
 	
 	int nbins = 70;
 	
-	TString drawcmd = bnames[j]+":"+bnames[i];
+	TString drawcmd = bnames.at(j)+":"+bnames.at(i);
 	std::cout << drawcmd << std::endl;
-	chain->Draw(bnames[j],stepcut.c_str());
+	chain->Draw(bnames.at(j),stepcut.c_str());
 	TH1 *htemp2 = (TH1*)gPad->GetPrimitive("htemp");
 	double maximum2 = htemp2->GetXaxis()->GetBinUpEdge(htemp2->GetXaxis()->GetNbins());
 	double minimum2 = htemp2->GetXaxis()->GetBinLowEdge(1);
@@ -404,7 +409,7 @@ void MakePlots(std::string inputFile, bool correlations) {
 	TH2F *hpost2 = new TH2F(drawcmd, drawcmd, hpost->GetNbinsX(), hpost->GetBinLowEdge(0), hpost->GetBinLowEdge(hpost->GetNbinsX()+1), nbins, minimum2, maximum2);
 	hpost2->SetMinimum(0);
 	hpost2->GetXaxis()->SetTitle(hpost->GetXaxis()->GetTitle());
-	hpost2->GetYaxis()->SetTitle( ("Number of " + std::string(bnames[j])  + " Events").c_str());
+	hpost2->GetYaxis()->SetTitle( ("Number of " + std::string(bnames.at(j))  + " Events").c_str());
 	hpost2->GetYaxis()->SetTitleOffset(1.2);
 	hpost2->GetZaxis()->SetTitle("Steps");
 	std::string plotTitle = hpost->GetXaxis()->GetTitle();
@@ -856,7 +861,7 @@ void LoadInputVals( ) {
     std::string tempName = it->first;
     if(tempName.find("-") != std::string::npos)
       tempName.replace(tempName.find("-"), 1, "_");
-    tempMins[tempName] = it->second;
+    tempMins[tempName] = asimovRates[it->first];
     tempMaxs[tempName] = maxs[it->first];
     tempSigmas[tempName] = constrSigmas[it->first];
     tempMeans[tempName] = constrMeans[it->first];
@@ -917,25 +922,27 @@ TH1D* MakePrefit(int nPar) {
 
   int count = 0;
   //You could have made asimov rates for more events than you fit over, so iterate over one of the maps from the fit config so you only get the fitted parameters
-  for(ParameterDict::iterator it = mins.begin(); it != mins.end(); ++it){
-    if(asimovRates[it->first] != 0) {
-      PreFitPlot->SetBinContent(count+1, asimovRates[it->first]/asimovRates[it->first]);
-      PreFitPlot->GetXaxis()->SetBinLabel(count+1, it->first.c_str());
-      if(constrMeans[it->first] != 0){
-	PreFitPlot->SetBinContent(count+1, constrMeans[it->first]/asimovRates[it->first]);
-	PreFitPlot->SetBinError(count+1, constrSigmas[it->first]/asimovRates[it->first]);
+  //for(ParameterDict::iterator it = mins.begin(); it != mins.end(); ++it){
+  for(int i=0; i<bnames.size(); i++){
+    
+    if(asimovRates[bnames.at(i).Data()] != 0) {
+      PreFitPlot->SetBinContent(count+1, asimovRates[bnames.at(i).Data()]/asimovRates[bnames.at(i).Data()]);
+      PreFitPlot->GetXaxis()->SetBinLabel(count+1, bnames.at(i));
+      if(constrMeans[bnames.at(i).Data()] != 0){
+	PreFitPlot->SetBinContent(count+1, constrMeans[bnames.at(i).Data()]/asimovRates[bnames.at(i).Data()]);
+	PreFitPlot->SetBinError(count+1, constrSigmas[bnames.at(i).Data()]/asimovRates[bnames.at(i).Data()]);
       }
     }
     //If the asimov rate is 0, don't normalise, but set to 1 so it's still represented as a ratio to the asimov rate
     else {
-      PreFitPlot->SetBinContent(count+1, asimovRates[it->first]+1);
-      PreFitPlot->GetXaxis()->SetBinLabel(count+1, it->first.c_str());
-      if(constrMeans[it->first] != 0){
-        PreFitPlot->SetBinContent(count+1, constrMeans[it->first]+1);
-        PreFitPlot->SetBinError(count+1, constrSigmas[it->first]);
+      PreFitPlot->SetBinContent(count+1, asimovRates[bnames.at(i).Data()]+1);
+      PreFitPlot->GetXaxis()->SetBinLabel(count+1, bnames.at(i));
+      if(constrMeans[bnames.at(i).Data()] != 0){
+        PreFitPlot->SetBinContent(count+1, constrMeans[bnames.at(i).Data()]+1);
+        PreFitPlot->SetBinError(count+1, constrSigmas[bnames.at(i).Data()]);
       }
     }
-    //Keep count of number of parameters to get the right bin each time. This depends on eahc iteration over a map to be done in the same order, which I think is ok
+    //Keep count of number of parameters to get the right bin each time. This depends on each iteration over a map to be done in the same order, which I think is ok
     count++;
   }
   
