@@ -292,14 +292,14 @@ Fit(const std::string& mcmcConfigFile_,
   lh.SetParameters(res.GetBestFit());
   
   // Now save the results
-  res.SaveAs(outDir + "/fit_result.txt");
+  res.SaveAs(outDir + "/fit_result_MH.txt");
 
-  std::cout << "Saved fit result to " << outDir + "/fit_result.txt"
+  std::cout << "Saved fit result to " << outDir + "/fit_result_MH.txt"
             << std::endl;
 
   MCMCSamples samples = mh.GetSamples();
 
-  if(saveChain){
+  if(sacveChain){
     //Messy way to make output filename. OutDir is full path to output result directory. Using find_last_of / and stripping everything before it to get directory name (tempString2). Similarly find name of directory above (where pdfs and fake data is saved). Output filename is then aboveDirectory_resultDirectory.root, inside OutDir. Could surely do this in fewer lines, or just call it outputTree.root or something, but nice to have a more unique name 
     std::string chainFileName = outDir;
     std::string tempString1 = outDir;
@@ -427,6 +427,43 @@ Fit(const std::string& mcmcConfigFile_,
      << "\n\n\n" << "data set fit : " << dataPath_
      << "\n\n\n" << if_a.rdbuf()
      << "\n\n\n" << if_b.rdbuf();
+
+  HamiltonianSampler<BinnedNLLH> hsampler(lh, mcConfig.GetEpsilon(),
+					 0.1 * mcConfig.GetNSteps());
+
+  hsampler.SetMinima(minima);
+  hsampler.SetMaxima(maxima);
+  hsampler.SetMasses(masses);
+
+  MCMC hmcmc(sampler);
+
+  bool saveChain = true;
+  hmcmc.SetSaveChain(saveChain);
+  hmcmc.SetMaxIter(mcConfig.GetIterations());
+  hmcmc.SetBurnIn(mcConfig.GetBurnIn());
+  hmcmc.SetMinima(minima);
+  hmcmc.SetMaxima(maxima);
+
+  // we're going to minmise not maximise -log(lh) and the
+  // mc chain needs to know that the test stat is logged
+  // otherwise it will give us the distribution of the log(lh) not the lh
+
+  hmcmc.SetTestStatLogged(true);
+  hmcmc.SetFlipSign(true);
+
+  hmcmc.SetHistogramAxes(lhAxes);
+
+  // go
+  const FitResult& hres = hmcmc.Optimise(&lh);
+  lh.SetParameters(hres.GetBestFit());
+
+  // Now save the results
+  hres.SaveAs(outDir + "/fit_result_hmcmc.txt");
+
+  std::cout << "Saved fit result to " << outDir + "/fit_result_hmcmc.txt"
+            << std::endl;
+
+  MCMCSamples hsamples = hmcmc.GetSamples();
 
 }
 
