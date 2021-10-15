@@ -217,7 +217,7 @@ void MakePlots(std::string inputFile, bool correlations) {
   if (correlations) {
     rootfilename += "_plotCorrelations.root";
   } else {
-    rootfilename += "_plotParameters2.root";
+    rootfilename += "_plotParameters.root";
   }
 
   // The output file
