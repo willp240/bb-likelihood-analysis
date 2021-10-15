@@ -36,6 +36,7 @@ Fit(const std::string& mcmcConfigFile_,
     const std::string& outDirOverride_){
     Rand::SetSeed(0);
 
+    double scale[35] = {30,2,5,5,1,2,2,1,2,1,1,0.9,2,1.5,2,1.5,1,1,2,2,2,1,2,1.5,2,1,5,1,1,1,2,1,2,2,2};
 
     // Load up the configuration data
     FitConfig mcConfig;
@@ -235,11 +236,13 @@ Fit(const std::string& mcmcConfigFile_,
   asimovRates = (ParameterDict)*tempMap;
   asmvRatesFile->Close();
 
+  int para = 0;
   for(ParameterDict::iterator it = sigmas.begin(); it != sigmas.end(); ++it){
       masses[it->first] = 10/sigmas[it->first]/1/sigmas[it->first];
-      sigmas[it->first] = 0.1*asimovRates[it->first];
+      sigmas[it->first] = scale[para]*0.01*asimovRates[it->first];
       if(sigmas[it->first] ==0)
 	sigmas[it->first] = 30;
+      para++;
   }
 
   for(ParameterDict::iterator it = syst_mass.begin(); it != syst_mass.end(); ++it){
@@ -299,7 +302,7 @@ Fit(const std::string& mcmcConfigFile_,
 
   MCMCSamples samples = mh.GetSamples();
 
-  if(sacveChain){
+  if(saveChain){
     //Messy way to make output filename. OutDir is full path to output result directory. Using find_last_of / and stripping everything before it to get directory name (tempString2). Similarly find name of directory above (where pdfs and fake data is saved). Output filename is then aboveDirectory_resultDirectory.root, inside OutDir. Could surely do this in fewer lines, or just call it outputTree.root or something, but nice to have a more unique name 
     std::string chainFileName = outDir;
     std::string tempString1 = outDir;
@@ -316,7 +319,8 @@ Fit(const std::string& mcmcConfigFile_,
     chainFileName = outDir+tempString1+"_"+tempString2+".root";
     TFile *f = new TFile(chainFileName.c_str(),"recreate");
     TTree* outchain = samples.GetChain();
-    outchain->Write();  
+    outchain->Write();
+    delete f;
   }
 
   // save the histograms
@@ -428,21 +432,28 @@ Fit(const std::string& mcmcConfigFile_,
      << "\n\n\n" << if_a.rdbuf()
      << "\n\n\n" << if_b.rdbuf();
 
+
+  /////////////////////////////
+  // Now repeat fit and saving but for hmcmc, using mcmc best fit as start point
+  /*
   HamiltonianSampler<BinnedNLLH> hsampler(lh, mcConfig.GetEpsilon(),
-					 0.1 * mcConfig.GetNSteps());
+					  mcConfig.GetNSteps());
+
+  ParameterDict initVal = res.GetBestFit();
 
   hsampler.SetMinima(minima);
   hsampler.SetMaxima(maxima);
   hsampler.SetMasses(masses);
 
-  MCMC hmcmc(sampler);
+  MCMC hmcmc(hsampler);
 
-  bool saveChain = true;
+  saveChain = true;
   hmcmc.SetSaveChain(saveChain);
-  hmcmc.SetMaxIter(mcConfig.GetIterations());
-  hmcmc.SetBurnIn(mcConfig.GetBurnIn());
+  hmcmc.SetMaxIter(0);
+  hmcmc.SetBurnIn(0);//0.001*mcConfig.GetBurnIn());
   hmcmc.SetMinima(minima);
   hmcmc.SetMaxima(maxima);
+  hmcmc.SetInitialTrial(initVal);
 
   // we're going to minmise not maximise -log(lh) and the
   // mc chain needs to know that the test stat is logged
@@ -465,6 +476,154 @@ Fit(const std::string& mcmcConfigFile_,
 
   MCMCSamples hsamples = hmcmc.GetSamples();
 
+  if(saveChain){
+    std::cout << "saving ttree for hmc" << std::endl;
+    std::string chainFileName = outDir;
+    std::string tempString1 = outDir;
+    std::string tempString2 = outDir;
+    size_t last_slash_idx = tempString1.find_last_of("/");
+    tempString2.erase(0, last_slash_idx+1 );
+    if (std::string::npos != last_slash_idx){
+      tempString1.erase(last_slash_idx,std::string::npos);
+      last_slash_idx = tempString1.find_last_of("/");
+      if (std::string::npos != last_slash_idx)
+        tempString1.erase(0, last_slash_idx );
+    }
+
+    chainFileName = outDir+tempString1+"_"+tempString2+"_hmc.root";
+    TFile *f2 = new TFile(chainFileName.c_str(),"recreate");
+    TTree* outchain2 = hsamples.GetChain();
+    outchain2->GetEntry(1);
+    f2->cd();
+    outchain2->Write();
+    delete f2;
+  }
+
+  std::string projDir1Dhmc = outDir + "/1dlhproj_hmc";
+  std::string projDir2Dhmc = outDir + "/2dlhproj_hmc";
+  std::string scaledDistDirhmc = outDir + "/scaled_dists_hmc";
+
+  st = {0};
+  if (stat(projDir1Dhmc.c_str(), &st) == -1) {
+    mkdir(projDir1Dhmc.c_str(), 0700);
+  }
+
+  if (stat(projDir2Dhmc.c_str(), &st) == -1) {
+    mkdir(projDir2Dhmc.c_str(), 0700);
+  }
+
+  if (stat(scaledDistDirhmc.c_str(), &st) == -1) {
+    mkdir(scaledDistDirhmc.c_str(), 0700);
+  }
+
+  // save the histograms
+  const HistMap& proj1Dhmc = hsamples.Get1DProjections();
+  const HistMap& proj2Dhmc = hsamples.Get2DProjections();
+
+  std::cout << "Saving LH projections to \n\t"
+            << projDir1Dhmc
+            << "\n\t"
+            << projDir2Dhmc
+            << std::endl;
+
+  for(HistMap::const_iterator it = proj1Dhmc.begin(); it != proj1Dhmc.end();
+      ++it){
+    IO::SaveHistogram(it->second, projDir1Dhmc + "/" + it->first + "_hmc.root");
+  }
+
+  for(HistMap::const_iterator it = proj2Dhmc.begin(); it != proj2Dhmc.end();
+      ++it){
+    IO::SaveHistogram(it->second, projDir2Dhmc + "/" + it->first + "_hmc.root");
+  }
+
+  //Initialise postfit distributions to same axis as data
+  BinnedED postfitDist_hmc;
+  postfitDist_hmc = dataDist;
+  postfitDist_hmc.Empty();
+
+  // scale the distributions to the correct heights
+  // they are named the same as their fit parameters
+  std::cout << "Saving scaled histograms and data to \n\t"
+            << scaledDistDirhmc << std::endl;
+
+  if(dataDist.GetHistogram().GetNDims() < 3){
+    ParameterDict bestFit = hres.GetBestFit();
+    for(size_t i = 0; i < dists.size(); i++){
+      std::string name = dists.at(i).GetName();
+      dists[i].Normalise();
+      dists[i].Scale(bestFit[name]);
+      IO::SaveHistogram(dists[i].GetHistogram(),
+			scaledDistDirhmc + "/" + name + "_hmc.root");
+      //sum all scaled distributions to get full postfit "dataset"
+      postfitDist_hmc.Add(dists[i]);
+    }
+    //      for(int i_syst = 0; i_syst < syst_vec.size(); i_syst ++) {
+    for(std::map<std::string, Systematic*>::iterator it = syst_map.begin(); it != syst_map.end(); ++it) {
+      double distInt = postfitDist_hmc.Integral();
+      syst_map[it->first]->SetParameter(it->first,bestFit[it->first]);
+      postfitDist_hmc = syst_map[it->first]->operator()(postfitDist_hmc);
+      postfitDist_hmc.Scale(distInt);
+    }
+    IO::SaveHistogram(postfitDist_hmc.GetHistogram(),
+		      scaledDistDirhmc + "/postfitdist_hmc.root");
+  }else{
+    ParameterDict bestFit = hres.GetBestFit();
+    for(size_t i = 0; i < dists.size(); i++){
+      std::string name = dists.at(i).GetName();
+      dists[i].Normalise();
+      dists[i].Scale(bestFit[name]);
+
+      std::vector<std::string> keepObs;
+      keepObs.push_back("r");
+      keepObs.push_back("energy");
+      dists[i] = dists[i].Marginalise(keepObs);
+      IO::SaveHistogram(dists[i].GetHistogram(),
+			scaledDistDirhmc + "/" + name + "_hmc.root");
+      //sum all scaled distributions to get full postfit "dataset"
+      postfitDist_hmc.Add(dists[i]);
+    }
+    //for(int i_syst = 0; i_syst < syst_vec.size(); i_syst ++) {
+    for(std::map<std::string, Systematic*>::iterator it = syst_map.begin(); it != syst_map.end(); ++it) {
+      double distInt = postfitDist_hmc.Integral();
+      syst_map[it->first]->SetParameter(it->first,bestFit[it->first]);
+      postfitDist_hmc = syst_map[it->first]->operator()(postfitDist_hmc);
+      postfitDist_hmc.Scale(distInt);
+    }
+    IO::SaveHistogram(postfitDist_hmc.GetHistogram(),
+		      scaledDistDirhmc + "/postfitdist.root");
+  }
+
+  // and also save the data
+  if(dataDist.GetHistogram().GetNDims() < 3){
+    IO::SaveHistogram(dataDist.GetHistogram(), scaledDistDirhmc + "/" + "data.root");
+  }else{
+    std::vector<std::string> keepObs;
+    keepObs.push_back("r");
+    keepObs.push_back("energy");
+    dataDist = dataDist.Marginalise(keepObs);
+    IO::SaveHistogram(dataDist.GetHistogram(), scaledDistDirhmc + "/" + "data.root");
+  }
+  // avoid binning again if not nessecary
+  IO::SaveHistogram(dataDist.GetHistogram(),  outDir + "/" + "data.h5");
+
+  // save autocorrelations
+  std::ofstream hcofs((outDir + "/auto_correlations_hmc.txt").c_str());
+  std::vector<double> hautocors = hsamples.GetAutoCorrelations();
+  for(size_t i = 0; i < hautocors.size(); i++)
+    hcofs << i << "\t" << hautocors.at(i) << "\n";
+  hcofs.close();
+
+  // and a copy of all of the configurations used
+  std::ifstream hif_a(mcmcConfigFile_.c_str(), std::ios_base::binary);
+  std::ifstream hif_b(cutConfigFile_.c_str(),  std::ios_base::binary);
+
+  std::ofstream of2((outDir + "/config_log_hmc.txt").c_str(), std::ios_base::binary);
+
+  of2 << "dists from : " << distDir
+     << "\n\n\n" << "data set fit : " << dataPath_
+     << "\n\n\n" << hif_a.rdbuf()
+     << "\n\n\n" << hif_b.rdbuf();
+  */
 }
 
 int main(int argc, char *argv[]){
