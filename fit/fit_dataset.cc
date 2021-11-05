@@ -168,6 +168,8 @@ Fit(const std::string& mcmcConfigFile_,
   ParameterDict syst_nom =    systConfig.GetNominal();
   ParameterDict syst_maxima = systConfig.GetMaxima();
   ParameterDict syst_minima = systConfig.GetMinima();
+  ParameterDict syst_constr_mean = systConfig.GetConstrMean();
+  ParameterDict syst_constr_std = systConfig.GetConstrSigma();
   ParameterDict syst_mass =   systConfig.GetMass();
   ParameterDict syst_nbins =  systConfig.GetNBins();
   std::map<std::string, std::string> syst_type = systConfig.GetType();
@@ -211,6 +213,13 @@ Fit(const std::string& mcmcConfigFile_,
 
   ParameterDict constrMeans  = mcConfig.GetConstrMeans();
   ParameterDict constrSigmas = mcConfig.GetConstrSigmas();
+
+  for(ParameterDict::iterator it = syst_constr_mean.begin(); it != syst_constr_mean.end();
+      ++it){
+    constrMeans[it->first] = syst_constr_mean[it->first];
+    constrSigmas[it->first] = syst_constr_std[it->first];
+  }
+
   for(ParameterDict::iterator it = constrMeans.begin(); it != constrMeans.end();
       ++it)
       lh.SetConstraint(it->first, it->second, constrSigmas.at(it->first));
