@@ -6,6 +6,9 @@
 #include <CutConfigLoader.hh>
 #include <FitConfigLoader.hh>
 #include <FitConfig.hh>
+#include <SystConfigLoader.hh>
+#include <SystConfig.hh>
+#include <SystFactory.hh>
 #include <CutFactory.hh>
 #include <CutCollection.h>
 #include <fstream>
@@ -24,7 +27,8 @@ using namespace bbfit;
 void
 Fit(const std::string& mcmcConfigFile_, 
     const std::string& distConfigFile_,
-    const std::string& cutConfigFile_, 
+    const std::string& cutConfigFile_,
+    const std::string& systConfigFile_,
     const std::string& dataPath_,
     const std::string& dims_,
     const std::string& outDirOverride_){
@@ -87,8 +91,11 @@ Fit(const std::string& mcmcConfigFile_,
     cutCol.AddCut(*cut);
     delete cut; // cut col takes its own copy
   }
-  
 
+  // Load up the systematics
+  SystConfigLoader systLoader(systConfigFile_);
+  SystConfig systConfig = systLoader.LoadActive();
+  
   // Load up the dists
   DistConfigLoader dLoader(distConfigFile_);
   DistConfig pConfig = dLoader.Load();
@@ -136,29 +143,71 @@ Fit(const std::string& mcmcConfigFile_,
 
   //marginalise over PSD for 3D fitting
   if(dims_=="3d"){
-      std::cout<< "Marginilising for 3d" << std::endl;
-      std::vector<std::string> keepObs;
-      keepObs.push_back("energy");
-      keepObs.push_back("r");
-      keepObs.push_back("timePSD");
-      dataDist = dataDist.Marginalise(keepObs);
+    std::cout<< "Marginilising for 3d" << std::endl;
+    std::vector<std::string> keepObs;
+    keepObs.push_back("energy");
+    keepObs.push_back("r");
+    keepObs.push_back("timePSD");
+    dataDist = dataDist.Marginalise(keepObs);
   }
 
 	
   //marginalise over PSD for 2D fitting
   if(dims_=="2d"){
-      std::cout<< "Marginilising for 32" << std::endl;
-      std::vector<std::string> keepObs;
-      keepObs.push_back("energy");
-      keepObs.push_back("r");
-      dataDist = dataDist.Marginalise(keepObs);
+    std::cout<< "Marginilising for 2d" << std::endl;
+    std::vector<std::string> keepObs;
+    keepObs.push_back("energy");
+    keepObs.push_back("r");
+    dataDist = dataDist.Marginalise(keepObs);
   }
+
+  AxisCollection systAxes = DistBuilder::BuildAxes(pConfig);
+  std::vector<std::string> dataObs = pConfig.GetBranchNames();
+  ObsSet dataObsSet(dataObs);
+
+  ParameterDict syst_nom =    systConfig.GetNominal();
+  ParameterDict syst_maxima = systConfig.GetMaxima();
+  ParameterDict syst_minima = systConfig.GetMinima();
+  ParameterDict syst_mass =   systConfig.GetMass();
+  ParameterDict syst_nbins =  systConfig.GetNBins();
+  std::map<std::string, std::string> syst_type = systConfig.GetType();
+  std::map<std::string, std::string> syst_obs =  systConfig.GetObs();
+
+  std::map<std::string, Systematic*> syst_map;
+ 
+  //Loop over systematics and declare each type. Must be a better way to do this but
+  // it will do for now
+  for(std::map<std::string, std::string>::iterator it = syst_type.begin(); it != syst_type.end();
+      ++it) {
+    std::vector<std::string> Obs;
+    Obs.push_back(syst_obs[it->first]);
+    ObsSet obsSet(Obs);
+
+    double stddev_nom = 0;
+    if(syst_type[it->first] == "conv")
+      stddev_nom = syst_nom[it->first+"_stddevs"];
+    Systematic *syst = SystFactory::New(it->first, syst_type[it->first], syst_nom[it->first], stddev_nom);
+    syst->SetAxes(systAxes);
+    syst->SetTransformationObs(obsSet);
+    syst->SetDistributionObs(dataObsSet);
+    syst->Construct();
+    syst_map[it->first] = syst;
+  }
+
+  ParameterDict minima = mcConfig.GetMinima();
+  ParameterDict maxima = mcConfig.GetMaxima();
+
 
 // now build the likelihood
   BinnedNLLH lh;
+  lh.SetBufferAsOverflow(true);
+  lh.SetBuffer("energy",12,12);
   lh.AddPdfs(dists);
   lh.SetCuts(cutCol);
   lh.SetDataDist(dataDist);
+  for(std::map<std::string, Systematic*>::iterator it = syst_map.begin(); it != syst_map.end(); ++it) {
+    lh.AddSystematic(syst_map[it->first]);
+  }
 
   ParameterDict constrMeans  = mcConfig.GetConstrMeans();
   ParameterDict constrSigmas = mcConfig.GetConstrSigmas();
@@ -172,21 +221,27 @@ Fit(const std::string& mcmcConfigFile_,
 
   HamiltonianSampler<BinnedNLLH> sampler(lh, mcConfig.GetEpsilon(), 
                                          mcConfig.GetNSteps());
-  sampler.SetMinima(mcConfig.GetMinima());
-  sampler.SetMaxima(mcConfig.GetMaxima());
   ParameterDict masses;
 
   for(ParameterDict::iterator it = sigmas.begin(); it != sigmas.end(); ++it)
       masses[it->first] = 1/sigmas[it->first]/1/sigmas[it->first];
 
+  for(ParameterDict::iterator it = syst_mass.begin(); it != syst_mass.end(); ++it){
+    masses[it->first] = syst_mass[it->first];
+    minima[it->first] = syst_minima[it->first];
+    maxima[it->first] = syst_maxima[it->first];
+  }
+
+  sampler.SetMinima(minima);
+  sampler.SetMaxima(maxima);
   sampler.SetMasses(masses);
-  
+    
   MCMC mh(sampler);
 
   mh.SetMaxIter(mcConfig.GetIterations());
   mh.SetBurnIn(mcConfig.GetBurnIn());
-  mh.SetMinima(mcConfig.GetMinima());
-  mh.SetMaxima(mcConfig.GetMaxima());
+  mh.SetMinima(minima);
+  mh.SetMaxima(maxima);
   
   // we're going to minmise not maximise -log(lh) and the 
   // mc chain needs to know that the test stat is logged 
@@ -205,6 +260,12 @@ Fit(const std::string& mcmcConfigFile_,
 			   )
 		   );
   }
+
+  for(ParameterDict::iterator it = syst_nom.begin(); it != syst_nom.end(); ++it){
+    std::cout << minima[it->first] << " " << maxima[it->first] << " " << syst_nbins[it->first] <<  " " << it->first << std::endl;
+    lhAxes.AddAxis(BinAxis(it->first, minima[it->first], maxima[it->first], syst_nbins[it->first]));
+  }
+
 
   mh.SetHistogramAxes(lhAxes);
   
@@ -305,21 +366,23 @@ Fit(const std::string& mcmcConfigFile_,
 }
 
 int main(int argc, char *argv[]){
-  if (argc != 6 && argc != 7){
-    std::cout << "\nUsage: fit_dataset <fit_config_file> <dist_config_file> <cut_config_file> <data_to_fit> <4d,3d or 2d> <(opt) outdir_override>" << std::endl;
+  if (argc != 7 && argc != 8){
+    std::cout << "\nUsage: fit_dataset <fit_config_file> <dist_config_file> <cut_config_file> <syst_config_file> <data_to_fit> <4d,3d or 2d> <(opt) outdir_override>" << std::endl;
       return 1;
   }
 
   std::string fitConfigFile(argv[1]);
   std::string pdfPath(argv[2]);
   std::string cutConfigFile(argv[3]);
-  std::string dataPath(argv[4]);
-  std::string dims(argv[5]);
-  std::string outDirOverride;
-  if(argc == 7)
-    outDirOverride = std::string(argv[6]);
+  std::string systConfigFile(argv[4]);
+  std::string dataPath(argv[5]);
+  std::string dims(argv[6]);
 
-  Fit(fitConfigFile, pdfPath, cutConfigFile, dataPath, dims, outDirOverride);
+  std::string outDirOverride;
+  if(argc == 8)
+    outDirOverride = std::string(argv[7]);
+
+  Fit(fitConfigFile, pdfPath, cutConfigFile, systConfigFile, dataPath, dims, outDirOverride);
 
   return 0;
 }
