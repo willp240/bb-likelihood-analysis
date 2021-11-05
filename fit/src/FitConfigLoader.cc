@@ -21,6 +21,8 @@ FitConfigLoader::LoadActive() const{
   ConfigLoader::Open(fPath);
   int it;
   int burnIn;
+  int HMCit;
+  int HMCburnIn;
   int nSteps;
   double epsilon;
   std::string outDir;
@@ -28,6 +30,8 @@ FitConfigLoader::LoadActive() const{
 
   ConfigLoader::Load("summary", "iterations", it);
   ConfigLoader::Load("summary", "burn_in", burnIn);
+  ConfigLoader::Load("summary", "hmc_iterations", HMCit);
+  ConfigLoader::Load("summary", "hmc_burn_in", HMCburnIn);
   ConfigLoader::Load("summary", "output_directory", outDir);
   ConfigLoader::Load("summary", "n_steps", nSteps);
   ConfigLoader::Load("summary", "epsilon", epsilon);
@@ -37,7 +41,9 @@ FitConfigLoader::LoadActive() const{
   ret.SetEpsilon(epsilon);
   ret.SetIterations(it);
   ret.SetBurnIn(burnIn);
-  
+  ret.SetHMCIterations(HMCit);
+  ret.SetHMCBurnIn(HMCburnIn);  
+
   typedef std::set<std::string> StringSet;
   StringSet toLoad;
   ConfigLoader::Load("summary", "fit_dists", toLoad);

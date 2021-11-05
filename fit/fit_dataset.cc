@@ -171,6 +171,8 @@ Fit(const std::string& mcmcConfigFile_,
   ParameterDict syst_minima = systConfig.GetMinima();
   ParameterDict syst_mass =   systConfig.GetMass();
   ParameterDict syst_nbins =  systConfig.GetNBins();
+  ParameterDict syst_constr_mean = systConfig.GetConstrMean();
+  ParameterDict syst_constr_std = systConfig.GetConstrSigma();
   std::map<std::string, std::string> syst_type = systConfig.GetType();
   std::map<std::string, std::string> syst_obs =  systConfig.GetObs();
 
@@ -213,6 +215,11 @@ Fit(const std::string& mcmcConfigFile_,
   ParameterDict constrSigmas = mcConfig.GetConstrSigmas();
 
   //to do: add systematic constraints
+  for(ParameterDict::iterator it = syst_constr_mean.begin(); it != syst_constr_mean.end();
+      ++it){
+    constrMeans[it->first] = syst_constr_mean[it->first];
+    constrSigmas[it->first] = syst_constr_std[it->first];
+  }
 
   for(ParameterDict::iterator it = constrMeans.begin(); it != constrMeans.end();
       ++it)
@@ -221,13 +228,13 @@ Fit(const std::string& mcmcConfigFile_,
   // and now the optimiser
   // Create something to do hamiltonian sampling
   ParameterDict sigmas = mcConfig.GetSigmas();
-
+  
   //  HamiltonianSampler<BinnedNLLH> sampler(lh, mcConfig.GetEpsilon(), 
   //                                   mcConfig.GetNSteps());
   MetropolisSampler sampler;
 
   ParameterDict masses;
-
+    
   TString ratespath = "/data/snoplus/parkerw/bb_sigex/Sep15_Allbg_Asimov/asimovdata.root";
   TFile *asmvRatesFile = new TFile(ratespath, "READ");
   ParameterDict asimovRates;
@@ -435,11 +442,18 @@ Fit(const std::string& mcmcConfigFile_,
 
   /////////////////////////////
   // Now repeat fit and saving but for hmcmc, using mcmc best fit as start point
-  /*
+  
   HamiltonianSampler<BinnedNLLH> hsampler(lh, mcConfig.GetEpsilon(),
 					  mcConfig.GetNSteps());
 
   ParameterDict initVal = res.GetBestFit();
+
+  for(ParameterDict::iterator it = syst_mass.begin(); it != syst_mass.end(); ++it){
+    masses[it->first] = syst_mass[it->first];
+    minima[it->first] = syst_minima[it->first];
+    maxima[it->first] = syst_maxima[it->first];
+    sigmas[it->first] = 0.001;
+  }
 
   hsampler.SetMinima(minima);
   hsampler.SetMaxima(maxima);
@@ -447,10 +461,9 @@ Fit(const std::string& mcmcConfigFile_,
 
   MCMC hmcmc(hsampler);
 
-  saveChain = true;
   hmcmc.SetSaveChain(saveChain);
-  hmcmc.SetMaxIter(0);
-  hmcmc.SetBurnIn(0);//0.001*mcConfig.GetBurnIn());
+  hmcmc.SetMaxIter(mcConfig.GetHMCIterations());
+  hmcmc.SetBurnIn(mcConfig.GetHMCBurnIn());//0.001*mcConfig.GetBurnIn());
   hmcmc.SetMinima(minima);
   hmcmc.SetMaxima(maxima);
   hmcmc.SetInitialTrial(initVal);
@@ -461,6 +474,21 @@ Fit(const std::string& mcmcConfigFile_,
 
   hmcmc.SetTestStatLogged(true);
   hmcmc.SetFlipSign(true);
+
+  /*  // create some axes for the mc to fill
+  AxisCollection lhAxes;
+  for(StringSet::iterator it = distsToFit.begin(); it != distsToFit.end();
+      ++it){
+    lhAxes.AddAxis(BinAxis(*it, mcConfig.GetMinima()[*it],
+                           mcConfig.GetMaxima()[*it],
+                           mcConfig.GetNBins()[*it]
+                           )
+                   );
+  }
+  for(ParameterDict::iterator it = syst_nom.begin(); it != syst_nom.end(); ++it){
+    std::cout << minima[it->first] << " " << maxima[it->first] << " " << syst_nbins[it->first] <<  " " << it->first << std::endl;
+    lhAxes.AddAxis(BinAxis(it->first, minima[it->first], maxima[it->first], syst_nbins[it->first]));
+    }*/
 
   hmcmc.SetHistogramAxes(lhAxes);
 
@@ -623,7 +651,7 @@ Fit(const std::string& mcmcConfigFile_,
      << "\n\n\n" << "data set fit : " << dataPath_
      << "\n\n\n" << hif_a.rdbuf()
      << "\n\n\n" << hif_b.rdbuf();
-  */
+
 }
 
 int main(int argc, char *argv[]){

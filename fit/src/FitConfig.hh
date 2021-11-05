@@ -17,9 +17,13 @@ public:
 
   int  GetIterations() const;
   void SetIterations(int);
+  int  GetHMCIterations() const;
+  void SetHMCIterations(int);
 
   int  GetBurnIn() const;
   void SetBurnIn(int);
+  int  GetHMCBurnIn() const;
+  void SetHMCBurnIn(int);
 
   void AddParameter(const std::string& name_, double min_, double max_, double sigma_, int nbins_);
   void AddParameter(const std::string& name_, double min_, double max_, double sigma_, int nbins_, 
@@ -46,6 +50,8 @@ private:
   ParameterDict fNbins;
   int       fIterations;
   int       fBurnIn;
+  int       fHMCIterations;
+  int       fHMCBurnIn;
   int       fNsteps;
   double    fEpsilon;
    

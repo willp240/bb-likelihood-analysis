@@ -43,6 +43,26 @@ FitConfig::SetBurnIn(int b_){
   fBurnIn = b_;
 }
 
+int
+FitConfig::GetHMCIterations() const{
+  return fHMCIterations;
+}
+
+void
+FitConfig::SetHMCIterations(int it_){
+  fHMCIterations = it_;
+}
+
+int
+FitConfig::GetHMCBurnIn() const{
+  return fHMCBurnIn;
+}
+
+void
+FitConfig::SetHMCBurnIn(int b_){
+  fHMCBurnIn = b_;
+}
+
 void
 FitConfig::AddParameter(const std::string& name_, double min_, double max_, double sigma_, int nbins_){
   fMinima[name_] = min_;
