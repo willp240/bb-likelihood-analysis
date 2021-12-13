@@ -38,6 +38,7 @@ Fit(const std::string& mcmcConfigFile_,
 
     double scale[35] = {30,2,5,5,1,2,2,1,2,1,1,0.9,2,1.5,2,1.5,1,1,2,2,2,1,2,1.5,2,1,5,1,1,1,2,1,2,2,2};
 
+
     // Load up the configuration data
     FitConfig mcConfig;
   
