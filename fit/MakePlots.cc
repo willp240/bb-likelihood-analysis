@@ -136,6 +136,7 @@ void MakePlots(std::string inputFile, bool correlations) {
   int npar = 0;
 
   int maxLLHStep = GetMaxLLHStep(chain);
+  std::vector<bool> systFlag; 
 
   // Loop over the number of branches
   chain->SetBranchStatus("*", false);
@@ -149,6 +150,10 @@ void MakePlots(std::string inputFile, bool correlations) {
     if(bname.BeginsWith("LogL")) continue;
     if(bname.BeginsWith("Accepted")) continue;
     if(bname.BeginsWith("Step")) continue;
+    if(bname.BeginsWith("energy_") || bname.BeginsWith("r_"))
+      systFlag.push_back(true);
+    else
+      systFlag.push_back(false);
 
     chain->SetBranchStatus(bname, true);
     bnames.push_back(bname);
@@ -252,9 +257,9 @@ void MakePlots(std::string inputFile, bool correlations) {
     double maximum = htemp->GetXaxis()->GetBinUpEdge(htemp->GetXaxis()->GetNbins());
     double minimum = htemp->GetXaxis()->GetBinLowEdge(1);
 
-    if(minimum<0)
-      std::cout << "*************" << bnames.at(i) << " " << minimum << std::endl;
-    
+    if(minimum<0 && !systFlag.at(i) ){
+      htemp->GetXaxis()->SetRangeUser(0,maximum);
+    }
     // This holds the posterior density
     TH1D *hpost = new TH1D(bnames.at(i), bnames.at(i), nbins, minimum, maximum);
     hpost->SetMinimum(0);
@@ -325,7 +330,10 @@ void MakePlots(std::string inputFile, bool correlations) {
     hpost->SetLineColor(kBlack);
     hpost->SetMaximum(hpost->GetMaximum()*1.5);
     hpost->SetTitle(tempString.c_str());
-    hpost->GetXaxis()->SetTitle(("Number of " + std::string(hpost->GetTitle())  + " Events").c_str());
+    if(systFlag.at(i))
+      hpost->GetXaxis()->SetTitle(("Value of " + std::string(hpost->GetTitle()) ).c_str());
+    else
+      hpost->GetXaxis()->SetTitle(("Number of " + std::string(hpost->GetTitle())  + " Events").c_str());
     
     // Now make the TLine for the asimov
     TLine *asimov = new TLine(asimovLine, hpost->GetMinimum(), asimovLine, hpost->GetMaximum());
@@ -344,7 +352,7 @@ void MakePlots(std::string inputFile, bool correlations) {
     hpd->Draw("same");
     asimov->Draw("same");
     maxllhline->Draw("same");
-    
+
     leg->AddEntry(asimov, Form("#splitline{Asimov}{x = %.2f}", asimovLine), "l");
     leg->AddEntry(maxllhline, Form("#splitline{Max LLH}{x = %.2f}", maxllh), "l");
     leg->SetLineColor(0);
@@ -364,6 +372,7 @@ void MakePlots(std::string inputFile, bool correlations) {
     c0->Write();
 
     // Trace of each parameter
+/*
     TH2D *htrace = new TH2D(bnames.at(i)+"_trace", bnames.at(i)+"_trace", 100, 0, chain->GetMaximum("Step"), 100, minimum, maximum );
     htrace->GetXaxis()->SetTitle("Step");
     htrace->GetYaxis()->SetTitle(bnames.at(i));
@@ -376,7 +385,7 @@ void MakePlots(std::string inputFile, bool correlations) {
     htrace->Draw("colz");
     c0->SetName(htrace->GetName());
     c0->SetTitle(htrace->GetTitle());
-    c0->Print(canvasname);
+    c0->Print(canvasname);*/
 
     // If we're interested in drawing the correlations need to invoke another for loop
     // Can surely improve this with less repeated code but it will do for now
@@ -439,7 +448,7 @@ void MakePlots(std::string inputFile, bool correlations) {
       } // End for (j = 0; j <= i; ++j)
     }	
     delete hpost;
-    delete htrace;
+    //delete htrace;
     delete asimov;
     delete hpd;
     delete leg;
@@ -1041,7 +1050,7 @@ TCanvas* CompareProjections(TH1D* prefit, TH1D* postfit){
   TCanvas* c2 = new TCanvas("c2", "c2", 0, 0, 1500, 1000);
   c2->SetGrid();
   
-  postfitn->GetYaxis()->SetRangeUser(0.989,1.011);
+  postfitn->GetYaxis()->SetRangeUser(0.89,1.11);
   postfitn->GetYaxis()->SetTitle("Ratio");
   postfitn->SetTitle("");
 
