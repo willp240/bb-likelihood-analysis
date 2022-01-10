@@ -76,6 +76,7 @@ BuildAzimov(const std::string& evConfigFile_,
     BinnedED azimov;
     //vector of each interaction type distribution
     std::vector<BinnedED> indivAsmvDists;
+    std::map<std::string, int> genRates;
     bool setAxes = false;
     if(!loadPDF_){
         AxisCollection axes = DistBuilder::BuildAxes(pConfig);
@@ -83,8 +84,8 @@ BuildAzimov(const std::string& evConfigFile_,
         setAxes = true;
     }
 
-    std::vector<std::string> names;
-    std::vector<double> rates;
+    //    std::vector<std::string> names;
+    //std::vector<double> rates;
 
     //load up systematics
     AxisCollection systAxes = DistBuilder::BuildAxes(pConfig);
@@ -125,6 +126,7 @@ BuildAzimov(const std::string& evConfigFile_,
         BinnedED dist;
         dist = DistBuilder::Build(it->first, pConfig, ds, cutCol, log);
         unsigned long nGen = ds->GetNEntries();
+	
         if(it->second.GetNGenerated()){
             nGen = it->second.GetNGenerated();
             // perhaps you have already spilt the data in half
@@ -132,7 +134,9 @@ BuildAzimov(const std::string& evConfigFile_,
             // in that case nGenScale should equal 0.5
             nGen *= nGenScale_;
         }
-
+	
+	genRates[it->first] = nGen;
+	
         if(!it->second.GetRate())
             continue;
         std::cout << "Integral before scale = " << dist.Integral() << std::endl;
@@ -156,7 +160,7 @@ BuildAzimov(const std::string& evConfigFile_,
                 azimov.Add(dist);
 		//vector of each interaction type distribution
 		indivAsmvDists.push_back(dist);
-	  }
+	    }
 	  std::cout << "Added " << dist.Integral() << " of event type " << it->first << std::endl;
         }
         else{
@@ -232,11 +236,12 @@ BuildAzimov(const std::string& evConfigFile_,
 	asimovmap[it->first] = it->second;
       }
     }
-    
+
     //save rates for each interaction type in a file, could be saved in full asimov file instead of new stand alone file?
-    TFile *fRates = TFile::Open((outName_ + ".root").c_str(), "UPDATE");
-    fRates->WriteObject(&asimovmap, "AsimovRates");
-    fRates->Close();
+    TFile *fOut = TFile::Open((outName_ + ".root").c_str(), "UPDATE");
+    fOut->WriteObject(&genRates, "GeneratedRates");
+    fOut->WriteObject(&asimovmap, "AsimovRates");
+    fOut->Close();
     
     return;
 }

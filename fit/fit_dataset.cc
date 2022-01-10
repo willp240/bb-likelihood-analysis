@@ -107,8 +107,22 @@ Fit(const std::string& mcmcConfigFile_,
   std::string distDir = pConfig.GetPDFDir();
 
   std::vector<BinnedED> dists;
+  std::vector<int> genRates;
   
-  
+  //////////////////////////////////////////////////////////////////////////////////////////
+  TString ratespath = "/data/snoplus/parkerw/bb_sigex/Jan10_Asmv_wGen/asimovdata.root";
+  TFile *asmvRatesFile = new TFile(ratespath, "READ");
+  ParameterDict asimovRates;
+  std::map<std::string, double>* tempMap;
+  asmvRatesFile->GetObject("AsimovRates",tempMap);
+  asimovRates = (ParameterDict)*tempMap;
+  std::map<std::string, int> generatedRates;
+  std::map<std::string, int>* tempMap2;
+  asmvRatesFile->GetObject("GeneratedRates",tempMap2);
+  generatedRates = *tempMap2;
+  asmvRatesFile->Close();
+  ///////////////////////////////////////////////////////////////////////////////////////////
+
   // the ones you actually want to fit are those listed in mcmcconfig
   typedef std::set<std::string> StringSet;
   StringSet distsToFit = mcConfig.GetParamNames();
@@ -118,6 +132,7 @@ Fit(const std::string& mcmcConfigFile_,
       ++it){
     std::string distPath = distDir + "/" + *it + ".h5";
     dists.push_back(BinnedED(*it, IO::LoadHistogram(distPath)));
+    genRates.push_back(generatedRates[*it]);
   }
 
 
@@ -200,14 +215,6 @@ Fit(const std::string& mcmcConfigFile_,
     syst_map[it->first] = syst;
   }
 
-  TString ratespath = "/data/snoplus/parkerw/bb_sigex/Sep15_Allbg_Asimov/asimovdata.root";
-  TFile *asmvRatesFile = new TFile(ratespath, "READ");
-  ParameterDict asimovRates;
-  std::map<std::string, double>* tempMap;
-  asmvRatesFile->GetObject("AsimovRates",tempMap);
-  asimovRates = (ParameterDict)*tempMap;
-  asmvRatesFile->Close();
-
   ParameterDict minima = mcConfig.GetMinima();
   ParameterDict maxima = mcConfig.GetMaxima();
 
@@ -218,6 +225,8 @@ Fit(const std::string& mcmcConfigFile_,
   lh.AddPdfs(dists);
   lh.SetCuts(cutCol);
   lh.SetDataDist(dataDist);
+  lh.SetGenRates(genRates);
+  lh.SetBarlowBeeston(true);
   for(std::map<std::string, Systematic*>::iterator it = syst_map.begin(); it != syst_map.end(); ++it) {
     lh.AddSystematic(syst_map[it->first]);
   }
