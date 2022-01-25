@@ -105,6 +105,9 @@ int main(int argc, char *argv[]){
     // create and fill
     BinnedED dist = DistBuilder::Build(it->first, pConfig, dataSet, cutCol, log);
 
+    std::vector<double> gen;
+    gen.push_back(dist.Integral());
+
     delete dataSet;
 
     // normalise
@@ -120,6 +123,10 @@ int main(int argc, char *argv[]){
     // save as a root histogram if possible
     if(dist.GetNDims() <= 2)
         IO::SaveHistogram(dist.GetHistogram(), pdfDir + "/" + it->first + ".root");
+
+    TFile *fOut = TFile::Open((pdfDir + "/" + it->first + ".root").c_str(), "UPDATE");
+    fOut->WriteObject(&gen, "nGeneratedEvents");
+    fOut->Close();    
 
     // HigherD save the projections
     if(dist.GetNDims() > 1){
