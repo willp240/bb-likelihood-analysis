@@ -25,8 +25,10 @@ FitConfigLoader::LoadActive() const{
   int HMCburnIn;
   int nSteps;
   double epsilon;
+  double sigmaScale;
   std::string outDir;
   std::string dataSet;
+  bool beestonBarlowFlag;
 
   ConfigLoader::Load("summary", "iterations", it);
   ConfigLoader::Load("summary", "burn_in", burnIn);
@@ -35,6 +37,8 @@ FitConfigLoader::LoadActive() const{
   ConfigLoader::Load("summary", "output_directory", outDir);
   ConfigLoader::Load("summary", "n_steps", nSteps);
   ConfigLoader::Load("summary", "epsilon", epsilon);
+  ConfigLoader::Load("summary", "sigma_scale", sigmaScale);
+  ConfigLoader::Load("summary", "beeston_barlow", beestonBarlowFlag);
 
   ret.SetOutDir(outDir);
   ret.SetNSteps(nSteps);
@@ -42,7 +46,9 @@ FitConfigLoader::LoadActive() const{
   ret.SetIterations(it);
   ret.SetBurnIn(burnIn);
   ret.SetHMCIterations(HMCit);
-  ret.SetHMCBurnIn(HMCburnIn);  
+  ret.SetHMCBurnIn(HMCburnIn);
+  ret.SetSigmaScale(sigmaScale);
+  ret.SetBeestonBarlow(beestonBarlowFlag);
 
   typedef std::set<std::string> StringSet;
   StringSet toLoad;

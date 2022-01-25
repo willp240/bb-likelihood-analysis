@@ -63,6 +63,26 @@ FitConfig::SetHMCBurnIn(int b_){
   fHMCBurnIn = b_;
 }
 
+double
+FitConfig::GetSigmaScale() const{
+  return fSigmaScale;
+}
+
+void
+FitConfig::SetSigmaScale(double b_){
+  fSigmaScale = b_;
+}
+
+bool
+FitConfig::GetBeestonBarlow() const{
+  return fBeestonBarlow;
+}
+
+void
+FitConfig::SetBeestonBarlow(bool b_){
+  fBeestonBarlow = b_;
+}
+
 void
 FitConfig::AddParameter(const std::string& name_, double min_, double max_, double sigma_, int nbins_){
   fMinima[name_] = min_;

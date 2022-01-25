@@ -24,6 +24,7 @@ SystConfigLoader::LoadActive() const{
   double      min;
   double      max;
   double      mass;
+  double      sigma;
   double      constrMean;
   double      constrSigma;
   int         nbins;
@@ -31,6 +32,7 @@ SystConfigLoader::LoadActive() const{
   double      std_min;
   double      std_max;
   double      std_mass;
+  double      std_sigma;
   int         std_nbins;
   std::string obs;
   std::string type;
@@ -46,6 +48,7 @@ SystConfigLoader::LoadActive() const{
     ConfigLoader::Load(name, "minima", min);
     ConfigLoader::Load(name, "maxima", max);
     ConfigLoader::Load(name, "mass", mass);
+    ConfigLoader::Load(name, "sigma", sigma);
     ConfigLoader::Load(name, "nbins", nbins);
     ConfigLoader::Load(name, "obs", obs);
     ConfigLoader::Load(name, "type", type);
@@ -54,10 +57,10 @@ SystConfigLoader::LoadActive() const{
       try{
 	ConfigLoader::Load(name, "constraint_mean", constrMean);
 	ConfigLoader::Load(name, "constraint_sigma", constrSigma);
-	ret.AddParameter(name, nom, min, max, mass, nbins, constrMean, constrSigma, obs, type);
+	ret.AddParameter(name, nom, min, max, mass, sigma, nbins, constrMean, constrSigma, obs, type);
       }
       catch(const ConfigFieldMissing& e_){
-	ret.AddParameter(name, nom, min, max, mass, nbins, obs, type);
+	ret.AddParameter(name, nom, min, max, mass, sigma, nbins, obs, type);
       }
     }
     else{
@@ -65,14 +68,15 @@ SystConfigLoader::LoadActive() const{
       ConfigLoader::Load(name, "minima_stddev", std_min);
       ConfigLoader::Load(name, "maxima_stddev", std_max);
       ConfigLoader::Load(name, "mass_stddev", std_mass);
+      ConfigLoader::Load(name, "sigma_stddev", std_sigma);
       ConfigLoader::Load(name, "nbins_stddev", std_nbins);
       try{
 	ConfigLoader::Load(name, "constraint_mean", constrMean);
 	ConfigLoader::Load(name, "constraint_sigma", constrSigma);
-	ret.AddParameter(name, nom, min, max, mass, nbins, constrMean, constrSigma, obs, type, std_nom, std_min, std_max, std_mass, std_nbins);
+	ret.AddParameter(name, nom, min, max, mass, sigma, nbins, constrMean, constrSigma, obs, type, std_nom, std_min, std_max, std_mass, std_sigma, std_nbins);
       }
       catch(const ConfigFieldMissing& e_){
-        ret.AddParameter(name, nom, min, max, mass, nbins, obs, type, std_nom, std_min, std_max, std_mass, std_nbins);
+        ret.AddParameter(name, nom, min, max, mass, sigma, nbins, obs, type, std_nom, std_min, std_max, std_mass, std_sigma, std_nbins);
       }
     }
   }

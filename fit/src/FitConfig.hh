@@ -40,6 +40,12 @@ public:
   double GetEpsilon() const;
   void   SetEpsilon(double);
 
+  double GetSigmaScale() const;
+  void   SetSigmaScale(double);
+
+  bool   GetBeestonBarlow() const;
+  void   SetBeestonBarlow(bool);
+
 private:
   std::string   fOutDir;
   ParameterDict fConstrMeans;
@@ -53,7 +59,9 @@ private:
   int       fHMCIterations;
   int       fHMCBurnIn;
   int       fNsteps;
+  bool      fBeestonBarlow;
   double    fEpsilon;
+  double    fSigmaScale;
    
 };
 }
