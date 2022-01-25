@@ -5,7 +5,7 @@
 // makes a plot of means and errors for all parameters. Also
 // the pre and postfit MC distributions, projections of these,
 // and ratios between them
-// ./MakePlots will tell you how
+// ./MakePlots will show the options
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -51,7 +51,7 @@ std::string scaledPostfitDistFileName;
 
 TH1D* MakePrefit(int npar);
 
-// Get the highest posterior density numbers from a 1D posterior
+// Get the highest posterior density value and errors
 void GetHPD(TH1D * const post, double &central, double &error, double &error_pos, double &error_neg);
 // Get arithmetic mean and sigma of histogram
 void GetArithmetic(TH1D * const hpost, double &mean, double &error);
@@ -63,7 +63,7 @@ double GetMaxLLHPar(TTree* chain, int maxStep, std::string parname);
 int GetMaxLLHStep(TTree* chain);
 
 //Main function with loop over all params
-void MakePlots(std::string inputfile, bool correlations = false);
+void MakePlots(std::string inputfile, bool correlations = false, bool traces = true);
 
 //Get bounds for each parameter
 void GetParLimits(std::string paramName, double &central, double &prior, double &down_error, double &up_error);
@@ -83,8 +83,8 @@ using namespace bbfit;
 
 int main(int argc, char *argv[]) {
   
-  if (argc != 5 && argc != 6 ) {
-    std::cerr << "./MakePlots root_file_to_analyse.root asimovDistFile scaledPostfitDistFile mcmcConfigFile correlations " << std::endl;
+  if (argc != 5 && argc != 6 && argc != 7) {
+    std::cerr << "./MakePlots root_file_to_analyse.root asimovDistFile scaledPostfitDistFile mcmcConfigFile correlations traces" << std::endl;
     exit(-1);
   }
 
@@ -98,21 +98,27 @@ int main(int argc, char *argv[]) {
   if (argc == 6) {
       correlations = true;
   }
+  //Plotting traces gives lots of plots and takes a bit of time, so only do if user wants to
+  bool traces = false;
+  if (argc == 7) {
+    traces = true;
+  }
 
-  MakePlots(filename, correlations);
+  MakePlots(filename, correlations, traces);
 
   return 0;
 }
 
 
-void MakePlots(std::string inputFile, bool correlations) {
+void MakePlots(std::string inputFile, bool correlations, bool traces) {
 
-  // do we want to draw correlations or not
+  // do we want to draw correlations and traces?
   std::cout << "File for study:       " << inputFile << std::endl;
   std::cout << "Draw correlations?    " << correlations << std::endl;
+  std::cout << "Draw traces?    " << traces << std::endl;
 
+  //Load up prefit values
   LoadInputVals();
-
   // Open the chain
   TChain* chain = new TChain("posteriors","");
   chain->Add(inputFile.c_str());
@@ -128,11 +134,8 @@ void MakePlots(std::string inputFile, bool correlations) {
   TObjArray* brlis = (TObjArray*)chain->GetListOfBranches();
   // Get the number of branches
   int nbr = brlis->GetEntries();
-  std::cout << "# of branches: " << nbr << std::endl;
-  // Make an array of TStrings
-  //TString bnames[nbr];
 
-  // Have a counter for how many parameters we have
+  //Count parameters
   int npar = 0;
 
   int maxLLHStep = GetMaxLLHStep(chain);
@@ -159,7 +162,7 @@ void MakePlots(std::string inputFile, bool correlations) {
     bnames.push_back(bname);
     npar++;
   }
-  std::cout << "numpars " << npar << std::endl;
+  std::cout << "Number of Fit Parameters " << npar << std::endl;
 
   // Get first entry in chain
   chain->GetEntry(0);
@@ -183,7 +186,6 @@ void MakePlots(std::string inputFile, bool correlations) {
   inputFile = inputFile.substr(0, inputFile.find(".root"));
 
   TString canvasname = inputFile;
-  // Append if we're drawing correlations
   if (correlations) {
     canvasname += "_plotCorrelations.pdf[";
   } else {
@@ -194,7 +196,7 @@ void MakePlots(std::string inputFile, bool correlations) {
   // Once the pdf file is open no longer need to bracket
   canvasname.ReplaceAll("[","");
 
-  // We fit with this Gaussian
+  //Gaussian for fitting
   TF1 *gauss = new TF1("gauss","[0]/sqrt(2.0*TMath::Pi())/[2]*TMath::Exp(-0.5*pow(x-[1],2)/[2]/[2])",-5,5);
   gauss->SetLineWidth(2);
   gauss->SetLineColor(kGreen+3);
@@ -353,7 +355,10 @@ void MakePlots(std::string inputFile, bool correlations) {
     asimov->Draw("same");
     maxllhline->Draw("same");
 
-    leg->AddEntry(asimov, Form("#splitline{Asimov}{x = %.2f}", asimovLine), "l");
+    if(prior)
+      leg->AddEntry(asimov, Form("#splitline{Asimov}{x = %.2f, Prior x = %.2f (+%.2f-%.2f)}", asimovLine,prior,up-prior,prior-down), "l");
+    else
+      leg->AddEntry(asimov, Form("#splitline{Asimov}{x = %.2f}", asimovLine), "l");
     leg->AddEntry(maxllhline, Form("#splitline{Max LLH}{x = %.2f}", maxllh), "l");
     leg->SetLineColor(0);
     leg->SetLineStyle(0);
@@ -372,21 +377,22 @@ void MakePlots(std::string inputFile, bool correlations) {
     c0->Write();
 
     // Trace of each parameter
-/*
-    TH2D *htrace = new TH2D(bnames.at(i)+"_trace", bnames.at(i)+"_trace", 100, 0, chain->GetMaximum("Step"), 100, minimum, maximum );
-    htrace->GetXaxis()->SetTitle("Step");
-    htrace->GetYaxis()->SetTitle(bnames.at(i));
-    htrace->SetTitle(bnames.at(i)+"_trace");
-    
-    // Project bnames.at(i) onto htrace, applying stepcut
-    chain->Project(bnames.at(i)+"_trace", bnames.at(i)+":Step");
-
-    gStyle->SetPalette(51);
-    htrace->Draw("colz");
-    c0->SetName(htrace->GetName());
-    c0->SetTitle(htrace->GetTitle());
-    c0->Print(canvasname);*/
-
+    if(traces) {
+      TH2D *htrace = new TH2D(bnames.at(i)+"_trace", bnames.at(i)+"_trace", 100, 0, chain->GetMaximum("Step"), 100, minimum, maximum );
+      htrace->GetXaxis()->SetTitle("Step");
+      htrace->GetYaxis()->SetTitle(bnames.at(i));
+      htrace->SetTitle(bnames.at(i)+"_trace");
+      
+      // Project bnames.at(i) onto htrace, applying stepcut
+      chain->Project(bnames.at(i)+"_trace", bnames.at(i)+":Step");
+      
+      gStyle->SetPalette(51);
+      htrace->Draw("colz");
+      c0->SetName(htrace->GetName());
+      c0->SetTitle(htrace->GetTitle());
+      c0->Print(canvasname);
+    }
+	
     // If we're interested in drawing the correlations need to invoke another for loop
     // Can surely improve this with less repeated code but it will do for now
     if (correlations) {
@@ -408,7 +414,6 @@ void MakePlots(std::string inputFile, bool correlations) {
 	int nbins = 70;
 	
 	TString drawcmd = bnames.at(j)+":"+bnames.at(i);
-	std::cout << drawcmd << std::endl;
 	chain->Draw(bnames.at(j),stepcut.c_str());
 	TH1 *htemp2 = (TH1*)gPad->GetPrimitive("htemp");
 	double maximum2 = htemp2->GetXaxis()->GetBinUpEdge(htemp2->GetXaxis()->GetNbins());
@@ -840,7 +845,6 @@ void GetGaussian(TH1D *& hpost, TF1 *& gauss, double &central, double &error) {
 // Function to get limits for all parameters from the input
 void LoadInputVals( ) {
   // **************************
-
   //Get asimov rates in a map
   TFile *asmvRatesFile = new TFile(asmvDistsFileName.c_str(), "READ");
   asmvRatesFile->cd();
@@ -853,7 +857,6 @@ void LoadInputVals( ) {
   FitConfig mcConfig;
   FitConfigLoader mcLoader(mcmcConfigFile);
   mcConfig = mcLoader.LoadActive();
-
   constrMeans  = mcConfig.GetConstrMeans();
   constrSigmas = mcConfig.GetConstrSigmas();
   mins = mcConfig.GetMinima();
@@ -870,7 +873,7 @@ void LoadInputVals( ) {
     std::string tempName = it->first;
     if(tempName.find("-") != std::string::npos)
       tempName.replace(tempName.find("-"), 1, "_");
-    tempMins[tempName] = asimovRates[it->first];
+    tempMins[tempName] = mins[it->first];
     tempMaxs[tempName] = maxs[it->first];
     tempSigmas[tempName] = constrSigmas[it->first];
     tempMeans[tempName] = constrMeans[it->first];
@@ -891,7 +894,7 @@ void LoadInputVals( ) {
 void GetParLimits(std::string paramName, double &central, double &prior, double &down_error, double &up_error) {
   // **************************
 
-  central = 1.0;////default to one, so for anything not set in asimov rates file it's not 0. e.g for a systematic not in asimov rates
+  central = 0.0;////default to zero for anything not set in asimov rates filel
   double error = 0.0;
   double sigmas = 1.0;
   
@@ -901,20 +904,26 @@ void GetParLimits(std::string paramName, double &central, double &prior, double 
     error = constrSigmas[paramName];
   }
   
+  //If we have a prior, we want the uncertainty from the prior central value, not the asimov central value
+  double x;
+  if(prior)
+    x = prior;
+  else
+    x = central;
+
   // We might be passed the valid range of parameter
   // Do a check to see if this is true
-  if (central - error <  mins[paramName]) {
+  if (x - error <  mins[paramName]) {
     down_error = mins[paramName];
   } else {
-    down_error = central - error;
+    down_error = x - error;
   }
 
-  if (central + error > maxs[paramName]) {
+  if (x + error > maxs[paramName]) {
     up_error = maxs[paramName];
   } else {
-    up_error = central + error;
+    up_error = x + error;
   }
-
 }
 
 // *****************************
@@ -1050,7 +1059,7 @@ TCanvas* CompareProjections(TH1D* prefit, TH1D* postfit){
   TCanvas* c2 = new TCanvas("c2", "c2", 0, 0, 1500, 1000);
   c2->SetGrid();
   
-  postfitn->GetYaxis()->SetRangeUser(0.89,1.11);
+  postfitn->GetYaxis()->SetRangeUser(0.989,1.011);
   postfitn->GetYaxis()->SetTitle("Ratio");
   postfitn->SetTitle("");
 
