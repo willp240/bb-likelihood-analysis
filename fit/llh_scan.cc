@@ -77,6 +77,7 @@ llh_scan(const std::string& mcmcConfigFile_,
   std::string distDir = pConfig.GetPDFDir();
 
   std::vector<BinnedED> dists;
+  std::vector<int> genRates;
     
   // the ones you actually want to fit are those listed in mcmcconfig
   typedef std::set<std::string> StringSet;
@@ -86,6 +87,14 @@ llh_scan(const std::string& mcmcConfigFile_,
       ++it){
     std::string distPath = distDir + "/" + *it + ".h5";
     dists.push_back(BinnedED(*it, IO::LoadHistogram(distPath)));
+    std::string rootPath = distDir + "/" + *it + ".root";
+    TFile *pdfFile = new TFile(rootPath.c_str(), "READ");
+    std::vector<int> nGeneratedEvents;
+    std::vector<int>* tempVec;
+    pdfFile->GetObject("nGeneratedEvents",tempVec);
+    nGeneratedEvents = *tempVec;
+    pdfFile->Close();
+    genRates.push_back(nGeneratedEvents.at(0));
   }
 
   // if its a root tree then load it up
@@ -149,6 +158,7 @@ llh_scan(const std::string& mcmcConfigFile_,
   std::map<std::string, std::string> syst_obs =  systConfig.GetObs();
 
   std::vector <Systematic*> syst_vec;
+  bool beestonBarlowFlag = mcConfig.GetBeestonBarlow();
 
   //Loop over systematics and declare each type. Must be a better way to do this but
   // it will do for now
@@ -177,6 +187,8 @@ llh_scan(const std::string& mcmcConfigFile_,
   lh.AddPdfs(dists);
   lh.SetCuts(cutCol);
   lh.SetDataDist(dataDist);
+  lh.SetGenRates(genRates);
+  lh.SetBarlowBeeston(beestonBarlowFlag);
   for (int i_syst = 0; i_syst<syst_vec.size(); i_syst++) {
     lh.AddSystematic(syst_vec.at(i_syst));
   }
@@ -253,7 +265,6 @@ llh_scan(const std::string& mcmcConfigFile_,
 
       //Set Parameters
       double parval = hScan->GetBinCenter(i+1)*nom;
-      std::cout << parval << std::endl;
       double tempval = parameterValues[name];
       parameterValues[name] = parval;
 
