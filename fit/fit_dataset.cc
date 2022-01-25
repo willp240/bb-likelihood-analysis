@@ -36,11 +36,6 @@ Fit(const std::string& mcmcConfigFile_,
     const std::string& outDirOverride_){
     Rand::SetSeed(0);
 
-    //    double scale[35] = {30,2,5,5,1,2,2,1,2,1,1,0.9,2,1.5,2,1.5,1,1,2,2,2,1,2,1.5,2,1,5,1,1,1,2,1,2,2,2};
-    double scale[35] = {43.02,18482.19,5203.18,1582.25,2457.61,502.36,1246.46,42.98,16.66,21869.72,23852.30,20035.87,15473.63,7572.87,1021.01,8198.31,397.49,1308.74,69.40,188.81,190.14,177.18,18293.09,5451.68,194.29,12175.57,29283.27,18823.21,8501.63,284.15,17156.45,279.24,83.15};
-
-    double intvals[35] = {75.00,123658.36,11416.83,714.97,768.90,1826.17,3809.96,339.96,126.81,107732.08,225726.01,69586.01,26798.74,11593.16,1725.06,27008.66,1324.32,44.94,57.25,361.24,123.98,498.25,41997.27,29669.60,724.38,47950.08,87420.70,63921.97,227.87,709.24,43179.73,785.78,164.09};
-
     // Load up the configuration data
     FitConfig mcConfig;
   
@@ -109,20 +104,6 @@ Fit(const std::string& mcmcConfigFile_,
   std::vector<BinnedED> dists;
   std::vector<int> genRates;
   
-  //////////////////////////////////////////////////////////////////////////////////////////
-  TString ratespath = "/data/snoplus/parkerw/bb_sigex/Jan10_Asmv_wGen/asimovdata.root";
-  TFile *asmvRatesFile = new TFile(ratespath, "READ");
-  ParameterDict asimovRates;
-  std::map<std::string, double>* tempMap;
-  asmvRatesFile->GetObject("AsimovRates",tempMap);
-  asimovRates = (ParameterDict)*tempMap;
-  std::map<std::string, int> generatedRates;
-  std::map<std::string, int>* tempMap2;
-  asmvRatesFile->GetObject("GeneratedRates",tempMap2);
-  generatedRates = *tempMap2;
-  asmvRatesFile->Close();
-  ///////////////////////////////////////////////////////////////////////////////////////////
-
   // the ones you actually want to fit are those listed in mcmcconfig
   typedef std::set<std::string> StringSet;
   StringSet distsToFit = mcConfig.GetParamNames();
@@ -132,7 +113,15 @@ Fit(const std::string& mcmcConfigFile_,
       ++it){
     std::string distPath = distDir + "/" + *it + ".h5";
     dists.push_back(BinnedED(*it, IO::LoadHistogram(distPath)));
-    genRates.push_back(generatedRates[*it]);
+    std::string rootPath = distDir + "/" + *it + ".root";
+    TFile *pdfFile = new TFile(rootPath.c_str(), "READ");
+    std::vector<int> nGeneratedEvents;
+    std::vector<int>* tempVec;
+    pdfFile->GetObject("nGeneratedEvents",tempVec);
+    nGeneratedEvents = *tempVec;
+    pdfFile->Close();
+    genRates.push_back(nGeneratedEvents.at(0));
+    std::cout << *it << " " << nGeneratedEvents.at(0) << std::endl;
   }
 
 
@@ -188,6 +177,7 @@ Fit(const std::string& mcmcConfigFile_,
   ParameterDict syst_maxima = systConfig.GetMaxima();
   ParameterDict syst_minima = systConfig.GetMinima();
   ParameterDict syst_mass =   systConfig.GetMass();
+  ParameterDict syst_sigma =   systConfig.GetSigma();
   ParameterDict syst_nbins =  systConfig.GetNBins();
   ParameterDict syst_constr_mean = systConfig.GetConstrMean();
   ParameterDict syst_constr_std = systConfig.GetConstrSigma();
@@ -195,9 +185,8 @@ Fit(const std::string& mcmcConfigFile_,
   std::map<std::string, std::string> syst_obs =  systConfig.GetObs();
 
   std::map<std::string, Systematic*> syst_map;
- 
-  //Loop over systematics and declare each type. Must be a better way to do this but
-  // it will do for now
+
+  //Loop over systematics and construct
   for(std::map<std::string, std::string>::iterator it = syst_type.begin(); it != syst_type.end();
       ++it) {
     std::vector<std::string> Obs;
@@ -217,6 +206,7 @@ Fit(const std::string& mcmcConfigFile_,
 
   ParameterDict minima = mcConfig.GetMinima();
   ParameterDict maxima = mcConfig.GetMaxima();
+  bool beestonBarlowFlag = mcConfig.GetBeestonBarlow();
 
   // now build the likelihood
   BinnedNLLH lh;
@@ -226,30 +216,13 @@ Fit(const std::string& mcmcConfigFile_,
   lh.SetCuts(cutCol);
   lh.SetDataDist(dataDist);
   lh.SetGenRates(genRates);
-  lh.SetBarlowBeeston(true);
-  for(std::map<std::string, Systematic*>::iterator it = syst_map.begin(); it != syst_map.end(); ++it) {
+  lh.SetBarlowBeeston(beestonBarlowFlag);
+  for(std::map<std::string, Systematic*>::iterator it = syst_map.begin(); it != syst_map.end(); ++it) 
     lh.AddSystematic(syst_map[it->first]);
-  }
 
   ParameterDict constrMeans  = mcConfig.GetConstrMeans();
   ParameterDict constrSigmas = mcConfig.GetConstrSigmas();
-  /*   
-  for(ParameterDict::iterator it = minima.begin(); it != minima.end();
-      ++it){
-    if(!constrMeans[it->first]){
-      if(asimovRates[it->first] > 0){
-	constrMeans[it->first] = asimovRates[it->first];
-	constrSigmas[it->first] = 0.05*asimovRates[it->first];
-	std::cout << "Setting " << it->first << " to " << asimovRates[it->first] << " +/- " << 0.5*asimovRates[it->first] << std::endl;
-      }
-      else{
-	constrMeans[it->first] = 0;
-	constrSigmas[it->first] = 10;
-	std::cout << "Setting "<< it->first << " to 0 +/- 1000 " << asimovRates[it->first] << std::endl;
-      }
-    }
-    }*/
-
+ 
   //to do: add systematic constraints
   for(ParameterDict::iterator it = syst_constr_mean.begin(); it != syst_constr_mean.end();
       ++it){
@@ -262,36 +235,27 @@ Fit(const std::string& mcmcConfigFile_,
     lh.SetConstraint(it->first, it->second, constrSigmas.at(it->first));
 
   // and now the optimiser
-  // Create something to do hamiltonian sampling
-  ParameterDict sigmas = mcConfig.GetSigmas();
-  
-  //  HamiltonianSampler<BinnedNLLH> hsampler(lh, mcConfig.GetEpsilon(), 
-  //					 mcConfig.GetNSteps());
+  // Create something to do mcmc sampling
   MetropolisSampler sampler;
 
   ParameterDict masses;
-
+  ParameterDict sigmas = mcConfig.GetSigmas();
+  double sigmaScale = mcConfig.GetSigmaScale();
+  
   int para = 0;
   ParameterDict startVals;
   for(ParameterDict::iterator it = sigmas.begin(); it != sigmas.end(); ++it){
       masses[it->first] = 10/sigmas[it->first]/1/sigmas[it->first];
-      sigmas[it->first] = scale[para]*0.01;//*asimovRates[it->first];
-      startVals[it->first] = intvals[para];
-      para++;
-      std::cout << it->first << " " << sigmas[it->first] << std::endl;
+      sigmas[it->first] *= sigmaScale;
   }
 
   for(ParameterDict::iterator it = syst_mass.begin(); it != syst_mass.end(); ++it){
     masses[it->first] = syst_mass[it->first];
     minima[it->first] = syst_minima[it->first];
     maxima[it->first] = syst_maxima[it->first];
-    sigmas[it->first] = 0.01*0.01;
-    startVals[it->first] = syst_nom[it->first];
+    sigmas[it->first] = syst_sigma[it->first]*sigmaScale;
   }
   
-  //sampler.SetMinima(minima);
-  //sampler.SetMaxima(maxima);
-  //sampler.SetMasses(masses);
   sampler.SetSigmas(sigmas);
 
   MCMC mh(sampler);
@@ -302,7 +266,7 @@ Fit(const std::string& mcmcConfigFile_,
   mh.SetBurnIn(mcConfig.GetBurnIn());
   mh.SetMinima(minima);
   mh.SetMaxima(maxima);
-  //mh.SetInitialTrial(startVals);
+
   // we're going to minmise not maximise -log(lh) and the 
   // mc chain needs to know that the test stat is logged 
   // otherwise it will give us the distribution of the log(lh) not the lh
@@ -320,10 +284,8 @@ Fit(const std::string& mcmcConfigFile_,
 			   )
 		   );
   }
-  for(ParameterDict::iterator it = syst_nom.begin(); it != syst_nom.end(); ++it){
-    std::cout << minima[it->first] << " " << maxima[it->first] << " " << syst_nbins[it->first] <<  " " << it->first << std::endl;
+  for(ParameterDict::iterator it = syst_nom.begin(); it != syst_nom.end(); ++it)
     lhAxes.AddAxis(BinAxis(it->first, minima[it->first], maxima[it->first], syst_nbins[it->first]));
-  }
 
   mh.SetHistogramAxes(lhAxes);
 
@@ -402,7 +364,6 @@ Fit(const std::string& mcmcConfigFile_,
 	  //sum all scaled distributions to get full postfit "dataset"
 	  postfitDist.Add(dists[i]);
       }
-      //      for(int i_syst = 0; i_syst < syst_vec.size(); i_syst ++) {
       for(std::map<std::string, Systematic*>::iterator it = syst_map.begin(); it != syst_map.end(); ++it) {
 	double distInt = postfitDist.Integral();
 	syst_map[it->first]->SetParameter(it->first,bestFit[it->first]);
@@ -427,7 +388,6 @@ Fit(const std::string& mcmcConfigFile_,
 	  //sum all scaled distributions to get full postfit "dataset"
 	  postfitDist.Add(dists[i]);
       }
-      //for(int i_syst = 0; i_syst < syst_vec.size(); i_syst ++) {
       for(std::map<std::string, Systematic*>::iterator it = syst_map.begin(); it != syst_map.end(); ++it) {
 	double distInt = postfitDist.Integral();
 	syst_map[it->first]->SetParameter(it->first,bestFit[it->first]);
@@ -476,26 +436,17 @@ Fit(const std::string& mcmcConfigFile_,
   HamiltonianSampler<BinnedNLLH> hsampler(lh, mcConfig.GetEpsilon(),
   					  mcConfig.GetNSteps());
 
-  //  MetropolisSampler sampler;
-
   ParameterDict initVal = res.GetBestFit();
-
-  for(ParameterDict::iterator it = syst_mass.begin(); it != syst_mass.end(); ++it){
-    masses[it->first] = syst_mass[it->first];
-    minima[it->first] = syst_minima[it->first];
-    maxima[it->first] = syst_maxima[it->first];
-  }
 
   hsampler.SetMinima(minima);
   hsampler.SetMaxima(maxima);
   hsampler.SetMasses(masses);
-  //sampler.SetSigmas(sigmas);
 
   MCMC hmcmc(hsampler);
 
   hmcmc.SetSaveChain(saveChain);
   hmcmc.SetMaxIter(mcConfig.GetHMCIterations());
-  hmcmc.SetBurnIn(mcConfig.GetHMCBurnIn());//0.001*mcConfig.GetBurnIn());
+  hmcmc.SetBurnIn(mcConfig.GetHMCBurnIn());
   hmcmc.SetMinima(minima);
   hmcmc.SetMaxima(maxima);
   hmcmc.SetInitialTrial(initVal);
@@ -506,22 +457,6 @@ Fit(const std::string& mcmcConfigFile_,
 
   hmcmc.SetTestStatLogged(true);
   hmcmc.SetFlipSign(true);
-  /*
-  // create some axes for the mc to fill
-  AxisCollection lhAxes;
-  for(StringSet::iterator it = distsToFit.begin(); it != distsToFit.end();
-      ++it){
-    lhAxes.AddAxis(BinAxis(*it, mcConfig.GetMinima()[*it],
-                           mcConfig.GetMaxima()[*it],
-                           mcConfig.GetNBins()[*it]
-                           )
-                   );
-  }
-  for(ParameterDict::iterator it = syst_nom.begin(); it != syst_nom.end(); ++it){
-    std::cout << minima[it->first] << " " << maxima[it->first] << " " << syst_nbins[it->first] <<  " " << it->first << std::endl;
-    lhAxes.AddAxis(BinAxis(it->first, minima[it->first], maxima[it->first], syst_nbins[it->first]));
-    }
-  */
   hmcmc.SetHistogramAxes(lhAxes);
 
   // go
@@ -617,7 +552,7 @@ Fit(const std::string& mcmcConfigFile_,
       //sum all scaled distributions to get full postfit "dataset"
       postfitDist_hmc.Add(dists[i]);
     }
-    //      for(int i_syst = 0; i_syst < syst_vec.size(); i_syst ++) {
+
     for(std::map<std::string, Systematic*>::iterator it = syst_map.begin(); it != syst_map.end(); ++it) {
       double distInt = postfitDist_hmc.Integral();
       syst_map[it->first]->SetParameter(it->first,bestFit[it->first]);
@@ -642,7 +577,6 @@ Fit(const std::string& mcmcConfigFile_,
       //sum all scaled distributions to get full postfit "dataset"
       postfitDist_hmc.Add(dists[i]);
     }
-    //for(int i_syst = 0; i_syst < syst_vec.size(); i_syst ++) {
     for(std::map<std::string, Systematic*>::iterator it = syst_map.begin(); it != syst_map.end(); ++it) {
       double distInt = postfitDist_hmc.Integral();
       syst_map[it->first]->SetParameter(it->first,bestFit[it->first]);
