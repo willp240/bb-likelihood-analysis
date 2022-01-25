@@ -84,9 +84,6 @@ BuildAzimov(const std::string& evConfigFile_,
         setAxes = true;
     }
 
-    //    std::vector<std::string> names;
-    //std::vector<double> rates;
-
     //load up systematics
     AxisCollection systAxes = DistBuilder::BuildAxes(pConfig);
     std::vector<std::string> dataObs = pConfig.GetBranchNames();
@@ -126,7 +123,6 @@ BuildAzimov(const std::string& evConfigFile_,
         BinnedED dist;
         dist = DistBuilder::Build(it->first, pConfig, ds, cutCol, log);
         unsigned long nGen = ds->GetNEntries();
-	
         if(it->second.GetNGenerated()){
             nGen = it->second.GetNGenerated();
             // perhaps you have already spilt the data in half
